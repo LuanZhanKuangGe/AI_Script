@@ -21,8 +21,9 @@ def has_audio(file_path):
         return False
 
 def move_silent_videos(source_dir):
-    # 定义目标文件夹
-    target_dir = os.path.join(source_dir, 'no_sound')
+    parent_dir = os.path.dirname(source_dir)
+    base_name = os.path.basename(source_dir)
+    target_dir = os.path.join(parent_dir, base_name + ' - no_sound')
     
     # 如果不存在则创建
     if not os.path.exists(target_dir):
