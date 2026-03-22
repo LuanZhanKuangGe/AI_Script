@@ -25,7 +25,7 @@ CHANNELS = [
         'url': 'https://t.me/tiktok825',
         'dir': Path(r"D:\Porn-Web\Telegram-tiktok825"),
         'check_sound': False
-    }
+    },
 ]
 
 def run_command(cmd, cwd=None, show_output=True):
@@ -121,19 +121,11 @@ def process_channel(channel):
     
     print(f"   JSON已更新，包含 {len(messages_to_keep)} 个文件")
     
-    if not run_command(r".\tdl.exe dl -f .\tdl-export.json", cwd=TDL_DIR):
+    if not run_command(rf".\tdl.exe dl -f .\tdl-export.json -d {target_dir}", cwd=TDL_DIR):
         print("   下载失败")
         return False
     
-    print("6. 移动下载的文件...")
-    download_dir = TDL_DIR / "downloads"
-    moved_count = 0
-    if download_dir.exists():
-        for f in download_dir.iterdir():
-            if f.is_file() and f.suffix.lower() in {'.mp4', '.mkv', '.avi', '.mov', '.wmv', '.m4v'}:
-                shutil.move(str(f), target_dir / f.name)
-                moved_count += 1
-    print(f"   移动了 {moved_count} 个文件")
+    print("6. 下载完成")
     
     if check_sound:
         print("7. 检查无声视频...")
