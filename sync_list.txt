@@ -14,7 +14,6 @@ notify.py
 ogfap.py
 onlytik.py
 ql_sample.py
-rule34.py
 sharesome.py
 tikporn.py
 waptap.py
