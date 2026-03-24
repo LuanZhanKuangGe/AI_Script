@@ -1,7 +1,21 @@
 import json
+import sys
 from tqdm import tqdm
 from pathlib import Path
 from collections import defaultdict
+
+
+def get_base_path():
+    if sys.platform == "win32":
+        return Path(r"D:\JAV")
+    return Path(r"/data/JAV")
+
+
+def get_other_path(name: str) -> Path:
+    base = get_base_path()
+    if sys.platform == "win32":
+        return base.parent / name
+    return Path(f"/data/{name}")
 
 
 def scan_videos(target: Path, pattern: str, desc: str, processor=None) -> list:
@@ -68,7 +82,11 @@ def main():
     database = {'jav_id': set(), 'jav_folder': {}}
     folder_dict = database['jav_folder']
 
-    jav_path = Path(r"/data/JAV")
+    jav_path = get_base_path()
+    if not jav_path.exists():
+        print(f"路径不存在: {jav_path}")
+        return
+
     for folder in jav_path.iterdir():
         if folder.is_dir():
             files = list(folder.iterdir())
@@ -86,21 +104,21 @@ def main():
         if serial_id not in folder_dict:
             folder_dict[serial_id] = video.parent.name
 
-    fc2_path = Path(r"/data/JAV-Other/FC2")
+    fc2_path = get_other_path("JAV-Other/FC2")
     if fc2_path.exists():
         for video in tqdm(list(fc2_path.rglob("*.mp4")), desc="update AVFC2"):
             video_id = video.stem.split(" ")[0]
             database['jav_id'].add(video_id)
             database['jav_id'].add(video_id.replace('-', '-PPV-'))
 
-    tokyo_hot_path = Path(r"/data/JAV-Other/東京熱")
+    tokyo_hot_path = get_other_path("JAV-Other/東京熱")
     if tokyo_hot_path.exists():
         for video in tqdm(list(tokyo_hot_path.rglob("*.nfo")), desc="update other"):
             video_id = video.stem.split(" ")[0].replace('[无码]', '')
             database['jav_id'].add(video_id)
             database['jav_id'].add(video_id.replace('n', 'N'))
 
-    vr_path = Path(r"/data/JAV-VR")
+    vr_path = get_other_path("JAV-VR")
     if vr_path.exists():
         for video in tqdm(list(vr_path.rglob("*.nfo")), desc="update JAV-VR"):
             video_id = video.stem.split(" ")[0].upper()
