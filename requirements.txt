@@ -1,0 +1,6 @@
+tqdm
+opencv-python
+fastapi
+gradio
+requests
+Pillow
