@@ -4,22 +4,6 @@ import requests
 from tqdm import tqdm
 from pathlib import Path
 
-iwara_headers = {
-    'authority': 'api.iwara.tv',
-    'accept': 'application/json',
-    'content-type': 'application/json',
-    'if-none-match': 'W/"ae0-mMYjE6WtBi0TCbA/345u8jstS6Y"',
-    'origin': 'https://www.iwara.tv',
-    'referer': 'https://www.iwara.tv/',
-    'sec-ch-ua': '"Not)A;Brand";v="8", "Chromium";v="138", "Microsoft Edge";v="138"',
-    'sec-ch-ua-mobile': '?0',
-    'sec-ch-ua-platform': '"Windows"',
-    'sec-fetch-dest': 'empty',
-    'sec-fetch-mode': 'cors',
-    'sec-fetch-site': 'same-site',
-    'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36 Edg/138.0.0.0',
-}
-
 
 def list_files(directory):
     path = Path(directory)
@@ -33,60 +17,6 @@ def list_folders(directory):
     folders.sort(key=lambda x: x.name)
     return folders
 
-def get_video_likes(user_id):
-    """获取用户视频的平均点赞数(以千为单位)"""
-    video_likes = 0
-    url = f"https://api.iwara.tv/videos?sort=likes&page=0&user={user_id}"
-    response = requests.get(url, headers=iwara_headers)
-    if response.status_code == 200:
-        videos_json = response.json()
-        if len(videos_json['results']) > 0:
-            for video in videos_json['results']:
-                likes = video['numLikes']
-                video_likes += likes
-            return round((video_likes / len(videos_json['results'])) / 1000, 1)
-        else:
-            return 0
-    else:
-        print(f"访问URL失败: {url}")
-        return 0
-
-def get_last_video_year(user_id):
-    """获取用户最后一个视频的发布年份"""
-    url = f"https://api.iwara.tv/videos?sort=date&page=0&user={user_id}"
-    response = requests.get(url, headers=iwara_headers)
-    if response.status_code == 200:
-        videos_json = response.json()
-        if len(videos_json['results']) > 0:
-            last_video_year = videos_json['results'][0]['createdAt'].split('-')[0]
-            return last_video_year
-        else:
-            return None
-    else:
-        print(f"访问URL失败: {url}")
-        return None
-
-
-def get_profile_json(name):
-    """获取用户的个人资料信息"""
-    user_name = None
-    last_video_year = None
-    video_likes = 0
-
-    url = f"https://api.iwara.tv/profile/{name}"
-    response = requests.get(url, headers=iwara_headers)
-    if response.status_code == 200:
-        dict = response.json()
-        user_id = dict['user']['id']
-        user_name = dict['user']['name']
-        last_video_year = get_last_video_year(user_id)
-        video_likes = get_video_likes(user_id)
-    elif response.status_code == 404:
-        last_video_year = 'del'
-    else:
-        print(f"访问URL失败: {url}")
-    return user_name, last_video_year, video_likes
-
 
 class Iwara():
 
@@ -95,32 +25,6 @@ class Iwara():
     database["mmd_data"] = []
     database["mmd_artist"] = []
     database["mmd_new"] = []
-
-    def folder(self):
-        for index, folder in enumerate(self.target.iterdir()):
-            if folder.is_dir() and not folder.name.startswith('[Del]') and not folder.name.startswith('#未整理'):
-                print(f"[{index}]")
-                poster_id = folder.name.split("]")[0][1:]
-
-                number = len(list(folder.iterdir()))
-                if number < 10:
-                    number = 1
-                elif 10 <= number <= 50:
-                    number = 10
-                elif 50 <= number <= 100:
-                    number = 50 
-                elif number > 100:
-                    number = 100   
-                
-                user_name, last_video_year, video_likes = get_profile_json(poster_id)
-
-                if last_video_year is not None:
-                    new_folder_name = f"[{poster_id}] {user_name} #{last_video_year} #{video_likes}k #{number}v"
-                    if folder.name != new_folder_name:
-                        new_folder_path = folder.parent / new_folder_name
-                        print(f"[{index}] '{folder.name}' 重命名为 '{new_folder_name}'")
-                        folder.rename(new_folder_path)
-
 
     def update(self):
         # 更新mmd数据
@@ -199,7 +103,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('-u', '--update', action='store_true')
     parser.add_argument('-n', '--new', action='store_true')
-    parser.add_argument('-f', '--folder', action='store_true')
     args = parser.parse_args()
 
     iwara = Iwara()
@@ -207,5 +110,3 @@ if __name__ == "__main__":
         iwara.update()
     if args.new:
         iwara.new()
-    if args.folder:
-        iwara.folder()
