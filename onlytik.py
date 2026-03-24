@@ -1,9 +1,53 @@
 import json
 import requests
 from pathlib import Path
-from func import download_video
 from tqdm import tqdm
 import platform
+
+
+def download_video(url, ref, filename):
+    try:
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3',
+            'Referer': ref,
+            'Origin': ref
+        }
+
+        print(f"开始下载: {url}")
+        response = requests.get(url, stream=True, headers=headers, timeout=60)
+        response.raise_for_status()
+
+        total_size = int(response.headers.get('Content-Length', 0))
+        print(f"文件大小: {total_size} bytes")
+
+        block_size = 1024
+        progress_bar = tqdm(total=total_size, unit='iB', unit_scale=True)
+        custom_string = f"{filename.name}"
+        progress_bar.set_description(custom_string)
+
+        with open(filename, 'wb') as f:
+            for data in response.iter_content(block_size):
+                progress_bar.update(len(data))
+                f.write(data)
+
+        progress_bar.close()
+        
+        if total_size != 0 and progress_bar.n != total_size:
+            print(f"下载不完整: {progress_bar.n}/{total_size}")
+            return 0
+        
+        print(f"下载完成: {filename.name}")
+        return 1
+        
+    except requests.exceptions.Timeout:
+        print(f"下载超时: {url}")
+        return 0
+    except requests.exceptions.ConnectionError:
+        print(f"连接错误: {url}")
+        return 0
+    except Exception as e:
+        print(f"下载失败: {url}, 错误: {e}")
+        return 0
 
 if platform.system() == "Windows":
     DOWNLOAD_PATH = Path(r"D:\Porn-Web\onlytik")

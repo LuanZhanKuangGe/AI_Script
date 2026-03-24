@@ -3,7 +3,35 @@ import json
 import requests
 from tqdm import tqdm
 from pathlib import Path
-from func import list_files, list_folders, iwara_headers
+
+iwara_headers = {
+    'authority': 'api.iwara.tv',
+    'accept': 'application/json',
+    'content-type': 'application/json',
+    'if-none-match': 'W/"ae0-mMYjE6WtBi0TCbA/345u8jstS6Y"',
+    'origin': 'https://www.iwara.tv',
+    'referer': 'https://www.iwara.tv/',
+    'sec-ch-ua': '"Not)A;Brand";v="8", "Chromium";v="138", "Microsoft Edge";v="138"',
+    'sec-ch-ua-mobile': '?0',
+    'sec-ch-ua-platform': '"Windows"',
+    'sec-fetch-dest': 'empty',
+    'sec-fetch-mode': 'cors',
+    'sec-fetch-site': 'same-site',
+    'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36 Edg/138.0.0.0',
+}
+
+
+def list_files(directory):
+    path = Path(directory)
+    files = [f for f in path.iterdir() if f.is_file()]
+    return files
+
+
+def list_folders(directory):
+    path = Path(directory)
+    folders = [f for f in path.iterdir() if f.is_dir()]
+    folders.sort(key=lambda x: x.name)
+    return folders
 
 def get_video_likes(user_id):
     """获取用户视频的平均点赞数(以千为单位)"""

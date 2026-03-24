@@ -6,7 +6,6 @@
 jav.py
 server.py
 fikfap.py
-func.py
 hanime.py
 hotscope.py
 iwara.py
