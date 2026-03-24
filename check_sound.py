@@ -1,4 +1,5 @@
 import os
+import sys
 import shutil
 import subprocess
 
@@ -42,8 +43,35 @@ def move_silent_videos(source_dir):
             else:
                 print(f"有声视频: {filename} - 跳过")
 
+def check_files(file_paths, source_dir):
+    parent_dir = os.path.dirname(source_dir)
+    base_name = os.path.basename(source_dir)
+    target_dir = os.path.join(parent_dir, base_name + ' - no_sound')
+    
+    if not os.path.exists(target_dir):
+        os.makedirs(target_dir)
+        print(f"已创建目录: {target_dir}")
+    
+    for filename in file_paths:
+        file_path = os.path.join(source_dir, filename)
+        if not os.path.exists(file_path):
+            continue
+        if filename.lower().endswith('.mp4'):
+            if not has_audio(file_path):
+                print(f"发现无声视频: {filename} -> 移动中...")
+                shutil.move(file_path, os.path.join(target_dir, filename))
+            else:
+                print(f"有声视频: {filename} - 跳过")
+
 if __name__ == "__main__":
-    # 使用当前脚本所在目录，你也可以指定绝对路径
-    current_directory = os.getcwd()
-    move_silent_videos(current_directory)
+    if len(sys.argv) > 1:
+        file_paths = sys.argv[1].split(',')
+        source_dir = os.getcwd()
+    else:
+        current_directory = os.getcwd()
+        move_silent_videos(current_directory)
+        print("\n任务完成！")
+        sys.exit(0)
+    
+    check_files(file_paths, source_dir)
     print("\n任务完成！")
