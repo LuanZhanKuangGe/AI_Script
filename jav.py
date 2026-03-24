@@ -103,18 +103,6 @@ def main():
         serial_id = video.stem.split("-")[0]
         if serial_id not in folder_dict:
             folder_dict[serial_id] = video.parent.name
-        
-        folder = video.parent
-        nfo_name = video.stem
-        fanart = folder / f"{nfo_name}-fanart.jpg"
-        poster = folder / f"{nfo_name}-poster.jpg"
-        if not fanart.exists() or not poster.exists():
-            missing = []
-            if not fanart.exists():
-                missing.append(f"{nfo_name}-fanart.jpg")
-            if not poster.exists():
-                missing.append(f"{nfo_name}-poster.jpg")
-            print(f"缺少: {folder.name} - {', '.join(missing)}")
 
     fc2_path = get_other_path("JAV-Other/FC2")
     if fc2_path.exists():
@@ -149,6 +137,8 @@ def main():
 
     folder_stats = collect_folder_stats(jav_path)
     print_folder_stats(folder_stats)
+
+    check_missing()
 
 
 if __name__ == "__main__":
