@@ -17,7 +17,6 @@ onlytik.py
 ql_sample.py
 rule34.py
 sharesome.py
-test_iwara.py
 tikporn.py
 waptap.py
 xxxfollow.py
