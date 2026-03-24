@@ -138,8 +138,6 @@ def main():
     folder_stats = collect_folder_stats(jav_path)
     print_folder_stats(folder_stats)
 
-    check_missing()
-
 
 if __name__ == "__main__":
     main()
