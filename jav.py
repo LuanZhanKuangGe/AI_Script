@@ -139,5 +139,55 @@ def main():
     print_folder_stats(folder_stats)
 
 
+def check_missing():
+    VIDEO_EXTENSIONS = {'.mp4', '.mkv', '.avi', '.wmv', '.mov', '.m4v'}
+    REQUIRED_FILES = ['.nfo', '-fanart.jpg', '-poster.jpg']
+    
+    jav_path = get_base_path()
+    missing_projects = []
+    
+    for subdir in sorted(jav_path.iterdir()):
+        if not subdir.is_dir():
+            continue
+        
+        for project_folder in sorted(subdir.iterdir()):
+            if not project_folder.is_dir():
+                continue
+            
+            folder_name = project_folder.name
+            file_names = [f.name for f in project_folder.iterdir()]
+            video_files = [f for f in file_names if f.startswith(folder_name) and Path(f).suffix.lower() in VIDEO_EXTENSIONS]
+            missing = [folder_name + req for req in REQUIRED_FILES if folder_name + req not in file_names]
+            
+            if missing or not video_files:
+                missing_projects.append({
+                    'folder': str(project_folder),
+                    'name': folder_name,
+                    'has_video': bool(video_files),
+                    'missing': missing
+                })
+    
+    if missing_projects:
+        print(f"找到 {len(missing_projects)} 个项目缺少文件:\n")
+        for p in missing_projects:
+            print(f"文件夹: {p['folder']}")
+            print(f"  项目名: {p['name']}")
+            if not p['has_video']:
+                print(f"  缺少: 视频文件")
+            if p['missing']:
+                print(f"  缺少: {', '.join(p['missing'])}")
+            print()
+    else:
+        print("所有项目都完整！")
+
+
 if __name__ == "__main__":
-    main()
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-c', '--check', action='store_true', help='检查缺失文件')
+    args = parser.parse_args()
+    
+    if args.check:
+        check_missing()
+    else:
+        main()
