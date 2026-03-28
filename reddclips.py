@@ -112,31 +112,39 @@ def main():
 
     print(f"\n共获取 {len(all_videos)} 个NSFW视频")
 
-    print(f"\n开始下载视频...")
-    total_downloaded = 0
-    total_skipped = 0
-    total_failed = 0
+    existing_files = {f.name for f in BASE_PATH.glob("*.mp4")}
+    print(f"  已存在 {len(existing_files)} 个文件")
 
-    for idx, video in enumerate(all_videos, 1):
+    filtered_videos = []
+    for video in all_videos:
         video_id = video.get('id', '')
         title = video.get('title', 'untitled')
         media_url = video.get('mediaUrl', '')
 
         if not media_url:
-            print(f"  [{idx}/{len(all_videos)}] 跳过: 无mediaUrl")
-            total_failed += 1
             continue
 
-        full_url = BASE_URL + media_url
         clean_title = validate_title(title)
         filename = f"[{video_id}] {clean_title}.mp4"
+
+        if filename not in existing_files:
+            filtered_videos.append((video, filename))
+
+    to_download = len(filtered_videos)
+    print(f"  需要下载 {to_download} 个视频")
+
+    print(f"\n开始下载视频...")
+    total_downloaded = 0
+    total_failed = 0
+
+    for idx, (video, filename) in enumerate(filtered_videos, 1):
+        video_id = video.get('id', '')
+        media_url = video.get('mediaUrl', '')
+
+        full_url = BASE_URL + media_url
         filepath = BASE_PATH / filename
 
-        print(f"  [{idx}/{len(all_videos)}] {filename}")
-
-        if filepath.exists():
-            total_skipped += 1
-            continue
+        print(f"  [{idx}/{to_download}] {filename}")
 
         if download_file(session, full_url, filepath):
             total_downloaded += 1
@@ -146,8 +154,8 @@ def main():
     print(f"\n{'='*60}")
     print("下载完成！")
     print(f"  总视频数: {len(all_videos)} 个")
+    print(f"  已跳过: {len(existing_files)} 个")
     print(f"  下载成功: {total_downloaded} 个")
-    print(f"  已跳过: {total_skipped} 个")
     print(f"  下载失败: {total_failed} 个")
     print(f"{'='*60}")
 
