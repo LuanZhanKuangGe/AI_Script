@@ -26,6 +26,11 @@ CHANNELS = [
         'dir': Path(r"D:\Porn-Web\Telegram-tiktok825"),
         'check_sound': False
     },
+    {
+        'url': 'https://t.me/tdtdttdtdttd',
+        'dir': Path(r"D:\Porn-Web\Telegram-tdtdttdtdttd"),
+        'check_sound': False
+    },
 ]
 
 def run_command(cmd, cwd=None, show_output=True):
