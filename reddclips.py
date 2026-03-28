@@ -34,7 +34,7 @@ def download_file(session: requests.Session, url: str, filepath: Path) -> bool:
 
     try:
         filepath.parent.mkdir(parents=True, exist_ok=True)
-        print(f"    下载中...")
+        print(f"    开始下载: {filepath.name}")
         response = session.get(url, stream=True, headers=HEADERS, timeout=60)
         response.raise_for_status()
 
@@ -44,7 +44,7 @@ def download_file(session: requests.Session, url: str, filepath: Path) -> bool:
         block_size = 8192
 
         with open(temp_filepath, 'wb') as f:
-            with tqdm(total=total_size, unit='B', unit_scale=True, desc=' ', leave=False) as pbar:
+            with tqdm(total=total_size, unit='B', unit_scale=True, desc=filepath.name, leave=False) as pbar:
                 for chunk in response.iter_content(block_size):
                     if chunk:
                         f.write(chunk)
@@ -52,26 +52,26 @@ def download_file(session: requests.Session, url: str, filepath: Path) -> bool:
                         pbar.update(len(chunk))
 
         if total_size > 0 and downloaded_size != total_size:
-            print(f"    下载不完整")
+            print(f"    下载不完整: {downloaded_size}/{total_size} bytes")
             temp_filepath.unlink()
             return False
 
         temp_filepath.rename(filepath)
-        print(f"    ✓ 下载完成")
+        print(f"    ✓ 下载完成: {filepath.name}")
         return True
 
     except requests.exceptions.Timeout:
-        print(f"    下载超时")
+        print(f"    下载超时: {filepath.name}")
         if temp_filepath.exists():
             temp_filepath.unlink()
         return False
     except requests.exceptions.RequestException as e:
-        print(f"    下载失败: {e}")
+        print(f"    下载失败: {filepath.name} - {e}")
         if temp_filepath.exists():
             temp_filepath.unlink()
         return False
     except Exception as e:
-        print(f"    下载异常: {e}")
+        print(f"    下载异常: {filepath.name} - {e}")
         if temp_filepath.exists():
             temp_filepath.unlink()
         return False
@@ -132,7 +132,7 @@ def main():
         filename = f"[{video_id}] {clean_title}.mp4"
         filepath = BASE_PATH / filename
 
-        print(f"  [{idx}/{len(all_videos)}]")
+        print(f"  [{idx}/{len(all_videos)}] {filename}")
 
         if filepath.exists():
             total_skipped += 1
