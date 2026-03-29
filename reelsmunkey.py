@@ -1,3 +1,4 @@
+import sys
 import re
 import json
 import requests
@@ -11,6 +12,8 @@ else:
     BASE_PATH = Path(r"/data/Porn-Web/reelsmunkey")
 
 BASE_PATH.mkdir(parents=True, exist_ok=True)
+
+MAX_PAGES = int(sys.argv[1]) if len(sys.argv) > 1 else 3
 
 HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36 Edg/138.0.0.0',
@@ -125,24 +128,18 @@ def download_file(session: requests.Session, url: str, filepath: Path) -> bool:
 
 def main():
     print(f"BASE_PATH: {BASE_PATH}")
+    print(f"最大页数: {MAX_PAGES}")
 
     session = requests.Session()
 
     all_videos = []
-    page = 1
 
-    while True:
+    for page in range(1, MAX_PAGES + 1):
         page_url = f"https://reelsmunkey.com/page/{page}"
         print(f"\n获取第 {page} 页: {page_url}")
         videos = parse_list_page(session, page_url)
         print(f"  获取到 {len(videos)} 个视频")
-
-        if not videos:
-            print(f"  没有更多视频，停止爬取")
-            break
-
         all_videos.extend(videos)
-        page += 1
 
     print(f"\n共获取 {len(all_videos)} 个视频")
 
