@@ -1,3 +1,4 @@
+import sys
 import re
 import requests
 from pathlib import Path
@@ -31,7 +32,7 @@ else:
 BASE_PATH.mkdir(parents=True, exist_ok=True)
 
 # 爬取页数常量
-N = 1
+N = int(sys.argv[1]) if len(sys.argv) > 1 else 3
 
 # 请求头
 HEADERS = {
