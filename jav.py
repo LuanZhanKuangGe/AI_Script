@@ -82,6 +82,7 @@ def main():
     database = {'jav_id': set(), 'jav_folder': {}, 'actor_count': {}}
     folder_dict = database['jav_folder']
     actor_count = database['actor_count']
+    missing_images = []
 
     jav_path = get_base_path()
     if not jav_path.exists():
@@ -104,6 +105,13 @@ def main():
         serial_id = video.stem.split("-")[0]
         if serial_id not in folder_dict:
             folder_dict[serial_id] = video.parent.name
+        
+        nfo_name = video.stem
+        fanart_file = video.parent / f"{nfo_name}-fanart.jpg"
+        poster_file = video.parent / f"{nfo_name}-poster.jpg"
+        
+        if not fanart_file.exists() or not poster_file.exists():
+            missing_images.append(video_id)
         
         try:
             content = video.read_text(encoding='utf-8', errors='ignore')
@@ -149,6 +157,13 @@ def main():
 
     folder_stats = collect_folder_stats(jav_path)
     print_folder_stats(folder_stats)
+    
+    if missing_images:
+        print("\n" + "=" * 60)
+        print("缺少fanart.jpg或poster.jpg的nfo文件")
+        print("=" * 60)
+        for vid in missing_images:
+            print(vid)
 
 
 if __name__ == "__main__":
