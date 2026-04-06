@@ -79,8 +79,9 @@ def print_folder_stats(folder_stats: dict):
 
 
 def main():
-    database = {'jav_id': set(), 'jav_folder': {}}
+    database = {'jav_id': set(), 'jav_folder': {}, 'actor_count': {}}
     folder_dict = database['jav_folder']
+    actor_count = database['actor_count']
 
     jav_path = get_base_path()
     if not jav_path.exists():
@@ -103,6 +104,17 @@ def main():
         serial_id = video.stem.split("-")[0]
         if serial_id not in folder_dict:
             folder_dict[serial_id] = video.parent.name
+        
+        try:
+            content = video.read_text(encoding='utf-8', errors='ignore')
+            if '<tag>单体作品</tag>' in content:
+                import re
+                actor_match = re.search(r'<actor>\s*<name>([^<]+)</name>', content)
+                if actor_match:
+                    actor_name = actor_match.group(1).strip()
+                    actor_count[actor_name] = actor_count.get(actor_name, 0) + 1
+        except Exception:
+            pass
 
     fc2_path = get_other_path("JAV-Other/FC2")
     if fc2_path.exists():
