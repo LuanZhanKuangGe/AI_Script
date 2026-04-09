@@ -14,8 +14,7 @@
 
 ## 文件同步规则
 
-- `sync_list.txt` 文件记录需要同步的文件列表
-- 列表中的文件每次修改后，自动复制到 `\\Z4PRO-4B98\nvme13-133XXXX8510\docker\qinglong\scripts`
+- `script/` 文件夹中的脚本每次修改后，自动复制到 `\\Z4PRO-4B98\nvme13-133XXXX8510\docker\qinglong\scripts`
 - 复制使用相对路径，保持目录结构
 
 ## Linting & Typecheck
