@@ -137,10 +137,10 @@ def process_channel(channel):
         new_files = ','.join(v['new_name'] for v in remaining)
         original_dir = os.getcwd()
         os.chdir(target_dir)
-        result = subprocess.run(['python', str(SCRIPT_DIR / 'check_sound.py'), new_files], capture_output=True)
+        result = subprocess.run(['python', str(SCRIPT_DIR / 'check_sound.py'), new_files], capture_output=True, encoding='gbk', errors='replace')
         os.chdir(original_dir)
         if result.stdout:
-            print(result.stdout.decode('utf-8', errors='replace'))
+            print(result.stdout)
     else:
         print("7. 跳过音轨检查")
     
