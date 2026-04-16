@@ -1,6 +1,7 @@
 from pathlib import Path
 import platform
 import sys
+import time
 from typing import Iterable, List, Optional, Tuple
 
 import requests
@@ -20,11 +21,13 @@ def iter_posts(target: str) -> Iterable[dict]:
         try:
             resp = requests.get(api_url, timeout=15)
         except Exception as exc:
-            print(f"[{target}] 请求第 {page} 页失败: {exc}")
-            return
+            print(f"[{target}] 请求第 {page} 页失败: {exc}，5秒后重试...")
+            time.sleep(5)
+            continue
         if resp.status_code != 200:
-            print(f"[{target}] 第 {page} 页返回 {resp.status_code}")
-            return
+            print(f"[{target}] 第 {page} 页返回 {resp.status_code}，5秒后重试...")
+            time.sleep(5)
+            continue
         try:
             data = resp.json()
         except Exception as exc:
