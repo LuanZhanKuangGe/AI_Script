@@ -200,7 +200,7 @@ else:
 
 session = requests.Session()
 
-download_mode = "full"
+download_mode = "quick"
 if len(sys.argv) > 1:
     if sys.argv[1] in ("full", "quick"):
         download_mode = sys.argv[1]
