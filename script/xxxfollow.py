@@ -12,12 +12,19 @@ except Exception:  # pragma: no cover - tqdm may not exist in env
     tqdm = None
 
 
-def iter_posts(target: str) -> Iterable[dict]:
+def iter_posts(target: str, mode: str = "full", base_path: Path = None) -> Iterable[dict]:
+    if mode == "quick":
+        yield from iter_posts_quick(target, base_path)
+    else:
+        yield from iter_posts_full(target)
+
+
+def iter_posts_full(target: str) -> Iterable[dict]:
     page = 1
     while True:
         if '#' in target:
             target = target.split('#')[0].strip()
-        api_url = f"https://www.xxxfollow.com/api/v1/user/{target}/post/public?limit=20&sort_by=likes&page={page}"
+        api_url = f"https://www.xxxfollow.com/api/v1/user/{target}/post/public?limit=20&sort_by=recent&page={page}"
         try:
             resp = requests.get(api_url, timeout=15)
         except Exception as exc:
@@ -39,9 +46,56 @@ def iter_posts(target: str) -> Iterable[dict]:
         page += 1
 
 
-def collect_media(target: str, base_path: Path) -> List[Tuple[str, Path]]:
+def iter_posts_quick(target: str, base_path: Path) -> Iterable[dict]:
+    if '#' in target:
+        target = target.split('#')[0].strip()
+    page = 1
+    while True:
+        api_url = f"https://www.xxxfollow.com/api/v1/user/{target}/post/public?limit=20&sort_by=recent&page={page}"
+        try:
+            resp = requests.get(api_url, timeout=15)
+        except Exception as exc:
+            print(f"[{target}] 请求第 {page} 页失败: {exc}，5秒后重试...")
+            time.sleep(5)
+            continue
+        if resp.status_code != 200:
+            print(f"[{target}] 第 {page} 页返回 {resp.status_code}，5秒后重试...")
+            time.sleep(5)
+            continue
+        try:
+            data = resp.json()
+        except Exception as exc:
+            print(f"[{target}] 第 {page} 页 JSON 解析失败: {exc}")
+            return
+        if not data:
+            return
+
+        target_dir = base_path / target
+        target_dir.mkdir(parents=True, exist_ok=True)
+        has_new = False
+        for entry in data:
+            media_list = entry.get("post", {}).get("media") or []
+            if not media_list:
+                continue
+            media = media_list[0]
+            url = media.get("fhd_url") or media.get("sd_url")
+            if not url:
+                continue
+            filename = url.split("/")[-1]
+            file_path = target_dir / filename
+            if not file_path.exists():
+                has_new = True
+                yield entry
+        if not has_new:
+            print(f"[{target}] 第 {page} 页没有新视频，停止")
+            return
+        page += 1
+
+
+def collect_media(target: str, base_path: Path, mode: str = "full") -> List[Tuple[str, Path]]:
     url_pairs: List[Tuple[str, Path]] = []
-    for entry in iter_posts(target):
+    target_dir = base_path / target
+    for entry in iter_posts(target, mode, base_path):
         media_list = entry.get("post", {}).get("media") or []
         if not media_list:
             continue
@@ -50,8 +104,9 @@ def collect_media(target: str, base_path: Path) -> List[Tuple[str, Path]]:
         if not url:
             continue
         filename = url.split("/")[-1]
-        file_path = base_path / target / filename
-        url_pairs.append((url, file_path))
+        file_path = target_dir / filename
+        if not file_path.exists():
+            url_pairs.append((url, file_path))
     return url_pairs
 
 
@@ -114,9 +169,9 @@ def download_with_resume(session: requests.Session, url: str, file_path: Path, o
                 else:
                     total_size = None
                 bar = _progress_bar(total_size, desc=file_path.name, unit="B")
-                mode = "ab" if resume_pos else "wb"
+                write_mode = "ab" if resume_pos else "wb"
                 written = resume_pos
-                with open(tmp_path, mode) as fh:
+                with open(tmp_path, write_mode) as fh:
                     if resume_pos:
                         bar.update(resume_pos)
                     for chunk in resp.iter_content(chunk_size=1024 * 256):
@@ -145,12 +200,17 @@ else:
 
 session = requests.Session()
 
+download_mode = "full"
+if len(sys.argv) > 1:
+    if sys.argv[1] in ("full", "quick"):
+        download_mode = sys.argv[1]
+
 for folder in BASE_PATH.iterdir():
     if not folder.is_dir():
         continue
     target_name = folder.name
-    print(f"开始处理: {target_name}")
-    media_tasks = collect_media(target_name, BASE_PATH)
+    print(f"开始处理: {target_name} (模式: {download_mode})")
+    media_tasks = collect_media(target_name, BASE_PATH, download_mode)
     total_files = len(media_tasks)
     if not total_files:
         print(f"[{target_name}] 无可下载媒体")
