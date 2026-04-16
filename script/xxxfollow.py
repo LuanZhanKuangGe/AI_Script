@@ -20,25 +20,24 @@ def iter_posts(target: str, mode: str = "full", base_path: Path = None) -> Itera
 
 
 def iter_posts_full(target: str) -> Iterable[dict]:
+    api_target = target.split('#')[0].strip() if '#' in target else target
     page = 1
     while True:
-        if '#' in target:
-            target = target.split('#')[0].strip()
-        api_url = f"https://www.xxxfollow.com/api/v1/user/{target}/post/public?limit=20&sort_by=recent&page={page}"
+        api_url = f"https://www.xxxfollow.com/api/v1/user/{api_target}/post/public?limit=20&sort_by=recent&page={page}"
         try:
             resp = requests.get(api_url, timeout=15)
         except Exception as exc:
-            print(f"[{target}] 请求第 {page} 页失败: {exc}，5秒后重试...")
+            print(f"[{api_target}] 请求第 {page} 页失败: {exc}，5秒后重试...")
             time.sleep(5)
             continue
         if resp.status_code != 200:
-            print(f"[{target}] 第 {page} 页返回 {resp.status_code}，5秒后重试...")
+            print(f"[{api_target}] 第 {page} 页返回 {resp.status_code}，5秒后重试...")
             time.sleep(5)
             continue
         try:
             data = resp.json()
         except Exception as exc:
-            print(f"[{target}] 第 {page} 页 JSON 解析失败: {exc}")
+            print(f"[{api_target}] 第 {page} 页 JSON 解析失败: {exc}")
             return
         if not data:
             return
@@ -47,25 +46,24 @@ def iter_posts_full(target: str) -> Iterable[dict]:
 
 
 def iter_posts_quick(target: str, base_path: Path) -> Iterable[dict]:
-    if '#' in target:
-        target = target.split('#')[0].strip()
+    api_target = target.split('#')[0].strip() if '#' in target else target
     page = 1
     while True:
-        api_url = f"https://www.xxxfollow.com/api/v1/user/{target}/post/public?limit=20&sort_by=recent&page={page}"
+        api_url = f"https://www.xxxfollow.com/api/v1/user/{api_target}/post/public?limit=20&sort_by=recent&page={page}"
         try:
             resp = requests.get(api_url, timeout=15)
         except Exception as exc:
-            print(f"[{target}] 请求第 {page} 页失败: {exc}，5秒后重试...")
+            print(f"[{api_target}] 请求第 {page} 页失败: {exc}，5秒后重试...")
             time.sleep(5)
             continue
         if resp.status_code != 200:
-            print(f"[{target}] 第 {page} 页返回 {resp.status_code}，5秒后重试...")
+            print(f"[{api_target}] 第 {page} 页返回 {resp.status_code}，5秒后重试...")
             time.sleep(5)
             continue
         try:
             data = resp.json()
         except Exception as exc:
-            print(f"[{target}] 第 {page} 页 JSON 解析失败: {exc}")
+            print(f"[{api_target}] 第 {page} 页 JSON 解析失败: {exc}")
             return
         if not data:
             return
@@ -87,7 +85,7 @@ def iter_posts_quick(target: str, base_path: Path) -> Iterable[dict]:
                 has_new = True
                 yield entry
         if not has_new:
-            print(f"[{target}] 第 {page} 页没有新视频，停止")
+            print(f"[{api_target}] 第 {page} 页没有新视频，停止")
             return
         page += 1
 
