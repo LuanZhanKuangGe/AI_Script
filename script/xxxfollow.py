@@ -203,9 +203,8 @@ if len(sys.argv) > 1:
     if sys.argv[1] in ("full", "quick"):
         download_mode = sys.argv[1]
 
-for folder in BASE_PATH.iterdir():
-    if not folder.is_dir():
-        continue
+folders = sorted([f for f in BASE_PATH.iterdir() if f.is_dir()], key=lambda x: x.stat().st_mtime, reverse=True)
+for folder in folders:
     target_name = folder.name
     print(f"开始处理: {target_name} (模式: {download_mode})")
     media_tasks = collect_media(target_name, BASE_PATH, download_mode)
