@@ -24,10 +24,12 @@
             if (linkEl.length) {
                 const text = linkEl.text().trim();
                 const href = linkEl.attr('href') || '';
+                console.log('[Missav] href:', href);
                 let videoId = '';
                 const pathMatch = href.match(/\/([^\/]+)$/);
                 if (pathMatch) {
                     videoId = pathMatch[1].toUpperCase();
+                    console.log('[Missav] Extracted ID:', videoId);
                 }
                 if (!videoId) {
                     const match = text.match(/^([A-Z0-9]+[-]\d+)/i);
