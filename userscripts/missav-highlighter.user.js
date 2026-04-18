@@ -18,14 +18,24 @@
     function highlightVideos(javIds) {
         console.log('[Missav] Total IDs from API:', javIds.length);
         console.log('[Missav] Items found:', $('div.thumbnail').length);
-        
+
         $('div.thumbnail').each(function() {
             const linkEl = $(this).find('.text-nord4 a');
             if (linkEl.length) {
                 const text = linkEl.text().trim();
-                const match = text.match(/^([A-Z0-9]+[-]?\d+)/i);
-                if (match) {
-                    const videoId = match[1].toUpperCase();
+                const href = linkEl.attr('href') || '';
+                let videoId = '';
+                const pathMatch = href.match(/\/([^\/]+)$/);
+                if (pathMatch) {
+                    videoId = pathMatch[1].toUpperCase();
+                }
+                if (!videoId) {
+                    const match = text.match(/^([A-Z0-9]+[-]\d+)/i);
+                    if (match) {
+                        videoId = match[1].toUpperCase();
+                    }
+                }
+                if (videoId) {
                     console.log('[Missav] Found video ID:', videoId);
                     if (javIds.includes(videoId)) {
                         console.log('[Missav] Matched, highlighting:', videoId);
