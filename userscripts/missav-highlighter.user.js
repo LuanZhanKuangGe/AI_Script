@@ -24,12 +24,19 @@
             if (linkEl.length) {
                 const text = linkEl.text().trim();
                 const href = linkEl.attr('href') || '';
-                console.log('[Missav] href:', href);
+                const alt = linkEl.attr('alt') || '';
+                console.log('[Missav] href:', href, 'alt:', alt);
                 let videoId = '';
-                const pathMatch = href.match(/\/([^\/]+)$/);
-                if (pathMatch) {
-                    videoId = pathMatch[1].toUpperCase();
-                    console.log('[Missav] Extracted ID:', videoId);
+                if (alt) {
+                    videoId = alt.toUpperCase();
+                    console.log('[Missav] From alt:', videoId);
+                }
+                if (!videoId && href) {
+                    const pathMatch = href.match(/\/([^\/]+)$/);
+                    if (pathMatch) {
+                        videoId = pathMatch[1].toUpperCase();
+                        console.log('[Missav] From href:', videoId);
+                    }
                 }
                 if (!videoId) {
                     const match = text.match(/^([A-Z0-9]+[-]\d+)/i);
