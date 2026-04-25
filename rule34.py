@@ -296,7 +296,7 @@ if __name__ == "__main__":
         except Exception as e:
             print(f'{artist} 获取页面失败: {e}')
         
-        if downloaded:
+        if not downloaded:
             crawler.artist_last_run[artist] = time.time()
             crawler.save_artist_last_run()
     
