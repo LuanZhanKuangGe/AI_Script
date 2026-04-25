@@ -77,9 +77,13 @@ def create_nfo(video_info: dict, video_file: Path):
     if nfo_path.exists():
         return
 
-    brand = video_info.get('brand', 'Unknown')
-    release_date = video_info.get('release_date', 'Unknown')
-    title = video_info.get('title', 'Unknown')
+    brand = video_info.get('brand')
+    release_date = video_info.get('release_date')
+    title = video_info.get('title')
+
+    if not brand or not release_date or not title:
+        print(f"信息不完整，跳过创建NFO: brand={brand}, release_date={release_date}, title={title}")
+        return
 
     nfo_content = f"""<?xml version="1.0" encoding="UTF-8"?>
 <movie>
