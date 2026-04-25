@@ -302,8 +302,8 @@ if __name__ == "__main__":
         last_run = crawler.artist_last_run.get(artist)
         if last_run:
             elapsed = time.time() - last_run
-            if elapsed < 3600:
-                print(f'{artist} 上次处理未满1小时，跳过')
+            if elapsed < 18000:
+                print(f'{artist} 上次处理未满5小时，跳过')
                 continue
         
         url = 'https://rule34.xxx/index.php?page=post&s=list&tags=video+sound+' + artist
