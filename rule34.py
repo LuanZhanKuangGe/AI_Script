@@ -244,6 +244,7 @@ if __name__ == "__main__":
                     soup = BeautifulSoup(response.content, 'html.parser')
                     
                     thumb_links = soup.find_all("span", class_="thumb")
+                    new_count = 0
                     for thumb in thumb_links:
                         link = thumb.find("a")
                         if link and link.get("href"):
@@ -253,10 +254,15 @@ if __name__ == "__main__":
                                 video_id = video_url.split("id=")[1].split("&")[0]
                                 if video_id in crawler.existing_ids:
                                     continue
+                                new_count += 1
                             except (IndexError, ValueError):
                                 pass
                             
                             crawler.download_one(video_url, video_id, artist)
+                    
+                    if new_count == 0:
+                        print(f'{artist} {page_url} 无新视频，跳过剩余页面')
+                        break
                     
                     print(f'{artist} {page_url}')
                     
