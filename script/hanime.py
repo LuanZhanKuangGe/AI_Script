@@ -44,14 +44,20 @@ def fetch_video_cover(video_file: Path) -> tuple[str | None, str | None]:
 
 
 def download_cover(cover_url: str, save_path: str):
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Referer': 'https://hanime.tv/'
+    }
     for attempt in range(3):
         try:
-            resp = requests.get(cover_url, timeout=30)
+            resp = requests.get(cover_url, timeout=30, headers=headers)
             if resp.status_code == 200:
                 with open(save_path, 'wb') as f:
                     f.write(resp.content)
                 print(f"已保存封面: {save_path}")
                 return
+            else:
+                print(f"下载失败状态码: {resp.status_code}")
         except Exception as e:
             print(f"下载封面失败 ({attempt + 1}/3): {e}")
             if attempt < 2:
@@ -80,8 +86,7 @@ def scan_videos(base_path: Path, check_cover: bool = True):
                 missing_covers.append(video.name)
                 cover_url, save_path = fetch_video_cover(video)
                 if cover_url:
-                    print(f"封面URL: {cover_url}")
-                    # download_cover(cover_url, save_path)
+                    download_cover(cover_url, save_path)
 
     print(f"需要获取封面: {checked} 个")
     return missing_covers
