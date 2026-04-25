@@ -13,12 +13,12 @@ BLOCK_FILES = {(2462403115, '121212.mp4')}
 CHANNELS = [
     {
         'url': 'https://t.me/xiaoPyixia1',
-        'dir': Path(r"D:\Porn-CN\【AI生成】\xiaoPyixia1"),
+        'dir': Path(r"D:\Porn-CN-Short\AI生成\xiaoPyixia1"),
         'check_sound': True
     },
     {
         'url': 'https://t.me/Mistralaiai',
-        'dir': Path(r"D:\Porn-CN\【AI生成】\Mistralaiai"),
+        'dir': Path(r"D:\Porn-CN-Short\AI生成\Mistralaiai"),
         'check_sound': False
     },
 ]
