@@ -5,6 +5,7 @@ from pathlib import Path
 from tqdm import tqdm
 import json
 import time
+import random
 import threading
 import logging
 
@@ -218,8 +219,8 @@ if __name__ == "__main__":
         try:
             response = crawler.session.get(url, timeout=30)
             if response.status_code == 403:
-                print(f'{artist} 遇到 403，暂停 20s 后重试')
-                time.sleep(20)
+                print(f'{artist} 遇到 403，暂停后重试')
+                time.sleep(random.uniform(1, 5))
                 response = crawler.session.get(url, timeout=30)
             response.raise_for_status()
             soup = BeautifulSoup(response.content, 'html.parser')
@@ -241,8 +242,8 @@ if __name__ == "__main__":
                 try:
                     response = crawler.session.get(page_url, timeout=30)
                     if response.status_code == 403:
-                        print(f'{artist} 遇到 403，暂停 20s 后重试')
-                        time.sleep(20)
+                        print(f'{artist} 遇到 403，暂停后重试')
+                        time.sleep(random.uniform(1, 5))
                         response = crawler.session.get(page_url, timeout=30)
                     response.raise_for_status()
                     soup = BeautifulSoup(response.content, 'html.parser')
