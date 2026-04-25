@@ -82,7 +82,7 @@ def create_nfo(video_info: dict, video_file: Path, video_id: str):
     title = video_info.get('title')
 
     if not brand or not release_date or not title:
-        print(f"信息不完整，跳过创建NFO: brand={brand}, release_date={release_date}, title={title}")
+        print(f"信息不完整，跳过创建NFO: id={video_id}, brand={brand}, release_date={release_date}, title={title}")
         return
 
     parts = video_id.split('-')
