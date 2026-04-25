@@ -72,7 +72,7 @@ def fetch_video_info(video_id: str, video_file: Path) -> dict | None:
     return None
 
 
-def create_nfo(video_info: dict, video_file: Path):
+def create_nfo(video_info: dict, video_file: Path, video_id: str):
     nfo_path = video_file.with_suffix('.nfo')
     if nfo_path.exists():
         return
@@ -84,6 +84,11 @@ def create_nfo(video_info: dict, video_file: Path):
     if not brand or not release_date or not title:
         print(f"信息不完整，跳过创建NFO: brand={brand}, release_date={release_date}, title={title}")
         return
+
+    parts = video_id.split('-')
+    if len(parts) >= 2 and parts[-1].isdigit():
+        episode = int(parts[-1])
+        title = f"{title} EP{episode}"
 
     nfo_content = f"""<?xml version="1.0" encoding="UTF-8"?>
 <movie>
@@ -213,7 +218,7 @@ if __name__ == "__main__":
             if not nfo_path.exists():
                 video_info = fetch_video_info(video_id, video)
                 if video_info:
-                    create_nfo(video_info, video)
+                    create_nfo(video_info, video, video_id)
 
     with open("data-hanime.json", "w", encoding="utf8") as fp:
         json.dump(database, fp, ensure_ascii=False, indent=2)
