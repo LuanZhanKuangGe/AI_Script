@@ -9,7 +9,12 @@ except Exception:
 
 
 def fetch_video_cover(video_file: str):
-    pass
+    parts = video_file.split('-')
+    if len(parts) >= 2 and parts[-2].strip() == '720p':
+        video_id = '-'.join(parts[:-2])
+        print(f"Video ID: {video_id}")
+    else:
+        print(f"无法解析文件名格式: {video_file}")
 
 
 def scan_videos(base_path: Path, check_cover: bool = True):
