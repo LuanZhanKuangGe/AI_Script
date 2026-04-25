@@ -98,14 +98,30 @@ if __name__ == "__main__":
     else:
         BASE_PATH = Path(r"/data/Hentai-Video/hanime.tv")
 
+    videos = list(BASE_PATH.rglob("*.mp4"))
+    print(f"找到 {len(videos)} 个视频文件")
+
     database = {"hanime_data": []}
 
-    for video in tqdm(list(BASE_PATH.rglob("*.mp4")), desc="update hanime"):
-        title = ('-').join(video.stem.split('-')[0:-2])
-        database["hanime_data"].append(title)
+    for video in tqdm(videos, desc="扫描视频"):
+        parts = video.stem.split('-')
+        if len(parts) >= 2 and parts[-2].strip() == '720p':
+            video_id = '-'.join(parts[:-2])
+            database["hanime_data"].append(video_id)
+
+            possible_covers = [
+                video.with_suffix('.jpg'),
+                video.with_suffix('.png'),
+                video.with_suffix('.webp'),
+                video.with_name(video.stem + '-poster.jpg'),
+                video.with_name(video.stem + '-poster.png'),
+            ]
+            has_cover = any(c.exists() for c in possible_covers)
+            if not has_cover:
+                cover_url, save_path = fetch_video_cover(video)
+                if cover_url:
+                    download_cover(cover_url, save_path)
 
     with open("data-hanime.json", "w", encoding="utf8") as fp:
         json.dump(database, fp, ensure_ascii=False, indent=2)
-
-    print("\n开始检查视频封面...")
-    scan_videos(BASE_PATH)
+    print("数据库已保存")
