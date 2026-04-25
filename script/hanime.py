@@ -1,6 +1,7 @@
 from pathlib import Path
 import platform
 import json
+import time
 import requests
 from bs4 import BeautifulSoup
 
@@ -15,34 +16,41 @@ def fetch_video_cover(video_file: Path) -> tuple[str | None, str | None]:
     if len(parts) >= 2 and parts[-2].strip() == '720p':
         video_id = '-'.join(parts[:-2])
         url = f"https://hanime.tv/videos/hentai/{video_id}"
-        try:
-            resp = requests.get(url, timeout=15)
-            if resp.status_code == 200:
-                soup = BeautifulSoup(resp.text, 'html.parser')
-                img = soup.find('div', class_='hvpi-cover-container')
-                if img:
-                    img_tag = img.find('img')
-                    if img_tag and img_tag.get('src'):
-                        cover_url = img_tag['src']
-                        ext = Path(cover_url).suffix or '.jpg'
-                        save_path = video_file.with_suffix(ext)
-                        return cover_url, str(save_path)
-        except Exception as e:
-            print(f"获取封面失败: {e}")
+
+        for attempt in range(3):
+            try:
+                resp = requests.get(url, timeout=15)
+                if resp.status_code == 200:
+                    soup = BeautifulSoup(resp.text, 'html.parser')
+                    img = soup.find('div', class_='hvpi-cover-container')
+                    if img:
+                        img_tag = img.find('img')
+                        if img_tag and img_tag.get('src'):
+                            cover_url = img_tag['src']
+                            ext = Path(cover_url).suffix or '.jpg'
+                            save_path = video_file.with_suffix(ext)
+                            return cover_url, str(save_path)
+            except Exception as e:
+                print(f"获取封面失败 ({attempt + 1}/3): {e}")
+                if attempt < 2:
     else:
         print(f"无法解析文件名格式: {video_file.stem}")
     return None, None
 
 
 def download_cover(cover_url: str, save_path: str):
-    try:
-        resp = requests.get(cover_url, timeout=30)
-        if resp.status_code == 200:
-            with open(save_path, 'wb') as f:
-                f.write(resp.content)
-            print(f"已保存封面: {save_path}")
-    except Exception as e:
-        print(f"下载封面失败: {e}")
+    for attempt in range(3):
+        try:
+            resp = requests.get(cover_url, timeout=30)
+            if resp.status_code == 200:
+                with open(save_path, 'wb') as f:
+                    f.write(resp.content)
+                print(f"已保存封面: {save_path}")
+                return
+        except Exception as e:
+            print(f"下载封面失败 ({attempt + 1}/3): {e}")
+            if attempt < 2:
+                time.sleep(5)
 
 
 def scan_videos(base_path: Path, check_cover: bool = True):
