@@ -292,13 +292,13 @@ if __name__ == "__main__":
                     
                 except Exception as e:
                     print(f'{artist} {page_url} 获取视频链接失败: {e}')
+            
+            if not downloaded:
+                crawler.artist_last_run[artist] = time.time()
+                crawler.save_artist_last_run()
         
         except Exception as e:
             print(f'{artist} 获取页面失败: {e}')
-        
-        if not downloaded:
-            crawler.artist_last_run[artist] = time.time()
-            crawler.save_artist_last_run()
     
     crawler.save_existing_ids()
     print("完成！")
