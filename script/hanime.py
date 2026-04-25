@@ -79,8 +79,9 @@ def scan_videos(base_path: Path, check_cover: bool = True):
                 checked += 1
                 missing_covers.append(video.name)
                 cover_url, save_path = fetch_video_cover(video)
-                if cover_url and save_path:
-                    download_cover(cover_url, save_path)
+                if cover_url:
+                    print(f"封面URL: {cover_url}")
+                    # download_cover(cover_url, save_path)
 
     print(f"需要获取封面: {checked} 个")
     return missing_covers
