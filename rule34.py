@@ -216,12 +216,10 @@ if __name__ == "__main__":
         
         url = 'https://rule34.xxx/index.php?page=post&s=list&tags=video+sound+' + artist
         
+        time.sleep(random.uniform(1, 5))
+        
         try:
             response = crawler.session.get(url, timeout=30)
-            if response.status_code == 403:
-                print(f'{artist} 遇到 403，暂停后重试')
-                time.sleep(random.uniform(1, 5))
-                response = crawler.session.get(url, timeout=30)
             response.raise_for_status()
             soup = BeautifulSoup(response.content, 'html.parser')
             
@@ -239,12 +237,9 @@ if __name__ == "__main__":
             print(f'{index} {artist} 获取到 {len(urls)} 个页面')
             
             for page_url in urls:
+                time.sleep(random.uniform(1, 5))
                 try:
                     response = crawler.session.get(page_url, timeout=30)
-                    if response.status_code == 403:
-                        print(f'{artist} 遇到 403，暂停后重试')
-                        time.sleep(random.uniform(1, 5))
-                        response = crawler.session.get(page_url, timeout=30)
                     response.raise_for_status()
                     soup = BeautifulSoup(response.content, 'html.parser')
                     
