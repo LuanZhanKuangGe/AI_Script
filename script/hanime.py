@@ -8,13 +8,13 @@ except Exception:
     tqdm = lambda x, **kwargs: x
 
 
-def fetch_video_cover(video_file: str):
-    parts = video_file.split('-')
+def fetch_video_cover(video_file: Path):
+    parts = video_file.stem.split('-')
     if len(parts) >= 2 and parts[-2].strip() == '720p':
         video_id = '-'.join(parts[:-2])
         print(f"Video ID: {video_id}")
     else:
-        print(f"无法解析文件名格式: {video_file}")
+        print(f"无法解析文件名格式: {video_file.stem}")
 
 
 def scan_videos(base_path: Path, check_cover: bool = True):
@@ -37,7 +37,7 @@ def scan_videos(base_path: Path, check_cover: bool = True):
             if not has_cover:
                 checked += 1
                 missing_covers.append(video.name)
-                fetch_video_cover(str(video))
+                fetch_video_cover(video)
 
     print(f"需要获取封面: {checked} 个")
     return missing_covers
