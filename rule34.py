@@ -8,6 +8,7 @@ import time
 import random
 import threading
 import logging
+import os
 
 
 def download_video(url, ref, filename):
@@ -68,6 +69,7 @@ class Rule34Crawler:
     def __init__(self):
         self.target = Path(get_data_path())
         self.existing_ids = set()
+        self.artist_last_run = {}
         
         cookie_file = Path(__file__).parent / "rule34-cookie.txt"
         if cookie_file.exists():
@@ -104,6 +106,7 @@ class Rule34Crawler:
         })
         
         self.scan_existing_files()
+        self.load_artist_last_run()
 
     def scan_existing_files(self):
         print("正在扫描现有文件...")
@@ -134,6 +137,17 @@ class Rule34Crawler:
         with open("data-rule34.json", "w", encoding="utf8") as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
         print(f"已保存 {len(self.existing_ids)} 个ID到 data-rule34.json")
+
+    def load_artist_last_run(self):
+        if os.path.exists("artist_last_run.json"):
+            with open("artist_last_run.json", "r", encoding="utf8") as f:
+                self.artist_last_run = json.load(f)
+        else:
+            self.artist_last_run = {}
+
+    def save_artist_last_run(self):
+        with open("artist_last_run.json", "w", encoding="utf8") as f:
+            json.dump(self.artist_last_run, f, ensure_ascii=False, indent=2)
 
     def download_one(self, video_url, video_id, artist):
         print(f"{artist} {video_url} 开始处理") 
@@ -214,9 +228,18 @@ if __name__ == "__main__":
         if not (crawler.target/artist).exists():
             (crawler.target/artist).mkdir()
         
+        last_run = crawler.artist_last_run.get(artist)
+        if last_run:
+            elapsed = time.time() - last_run
+            if elapsed < 3600:
+                print(f'{artist} 上次处理未满1小时，跳过')
+                continue
+        
         url = 'https://rule34.xxx/index.php?page=post&s=list&tags=video+sound+' + artist
         
         time.sleep(random.uniform(1, 5))
+        
+        downloaded = False
         
         try:
             response = crawler.session.get(url, timeout=30)
@@ -259,6 +282,7 @@ if __name__ == "__main__":
                                 pass
                             
                             crawler.download_one(video_url, video_id, artist)
+                            downloaded = True
                     
                     if new_count == 0:
                         print(f'{artist} {page_url} 无新视频，跳过剩余页面')
@@ -271,6 +295,10 @@ if __name__ == "__main__":
         
         except Exception as e:
             print(f'{artist} 获取页面失败: {e}')
+        
+        if downloaded:
+            crawler.artist_last_run[artist] = time.time()
+            crawler.save_artist_last_run()
     
     crawler.save_existing_ids()
     print("完成！")
