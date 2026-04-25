@@ -252,7 +252,8 @@ if __name__ == "__main__":
                         if href:
                             full_url = requests.compat.urljoin(url, href)
                             urls.append(full_url)
-            else:
+
+            if len(urls) == 0:
                 urls.append(url + "&pid=0")
 
             print(f'{artist} 获取到 {len(urls)} 个页面')
