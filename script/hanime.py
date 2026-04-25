@@ -58,6 +58,8 @@ def fetch_video_info(video_id: str, video_file: Path) -> dict | None:
                     if any('\u3040' <= c <= '\u309f' or '\u30a0' <= c <= '\u30ff' for c in title):
                         japanese_title = title
                         break
+                if not japanese_title and alt_titles:
+                    japanese_title = alt_titles[0]
 
                 return {
                     'brand': brand,
