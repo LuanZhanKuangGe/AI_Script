@@ -16,10 +16,13 @@ def fetch_video_cover(video_file: Path) -> tuple[str | None, str | None]:
     if len(parts) >= 2 and parts[-2].strip() == '720p':
         video_id = '-'.join(parts[:-2])
         url = f"https://hanime.tv/videos/hentai/{video_id}"
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        }
 
         for attempt in range(3):
             try:
-                resp = requests.get(url, timeout=15)
+                resp = requests.get(url, timeout=15, headers=headers)
                 if resp.status_code == 200:
                     soup = BeautifulSoup(resp.text, 'html.parser')
                     img = soup.find('div', class_='hvpi-cover-container')
@@ -30,9 +33,11 @@ def fetch_video_cover(video_file: Path) -> tuple[str | None, str | None]:
                             ext = Path(cover_url).suffix or '.jpg'
                             save_path = video_file.with_suffix(ext)
                             return cover_url, str(save_path)
+                    print(f"未找到封面元素，当前页面: {resp.text[:500]}")
             except Exception as e:
                 print(f"获取封面失败 ({attempt + 1}/3): {e}")
                 if attempt < 2:
+                    time.sleep(5)
     else:
         print(f"无法解析文件名格式: {video_file.stem}")
     return None, None
