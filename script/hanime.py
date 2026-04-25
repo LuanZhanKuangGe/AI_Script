@@ -45,13 +45,17 @@ def fetch_video_info(video_id: str, video_file: Path) -> dict | None:
                             if brand_link:
                                 brand = brand_link.get_text().strip()
                         elif header and header.get_text().strip() == 'Release Date':
-                            release_date = item.find('div', class_='hvpimbc-text').get_text().strip()
+                            text_div = item.find('div', class_='hvpimbc-text')
+                            if text_div:
+                                release_date = text_div.get_text().strip()
 
                     for item in flex_div.find_all('div', class_='hvpimbc-item full'):
                         header = item.find('div', class_='hvpimbc-header')
                         if header and header.get_text().strip() == 'Alternate Titles':
-                            for span in item.find('h2').find_all('span', class_='mr-3'):
-                                alt_titles.append(span.get_text().strip())
+                            h2 = item.find('h2')
+                            if h2:
+                                for span in h2.find_all('span', class_='mr-3'):
+                                    alt_titles.append(span.get_text().strip())
 
                 japanese_title = None
                 for title in alt_titles:
