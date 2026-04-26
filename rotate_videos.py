@@ -79,7 +79,6 @@ def main():
 
     total = len(mp4_files)
     for i, video in enumerate(mp4_files, 1):
-        print(f"[{i}/{total}]")
         start = time.time()
         if rotate_video(video, video.parent):
             success += 1
@@ -88,7 +87,7 @@ def main():
         elapsed = time.time() - start
         mins = int(elapsed // 60)
         secs = int(elapsed % 60)
-        print(f"  耗时: {mins}分{secs}秒")
+        print(f"[{i}/{total}] 耗时: {mins}分{secs}秒")
 
     print(f"\n完成: 成功 {success}, 失败 {failed}")
 
