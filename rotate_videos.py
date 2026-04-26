@@ -76,7 +76,9 @@ def main():
     success = 0
     failed = 0
 
-    for video in mp4_files:
+    total = len(mp4_files)
+    for i, video in enumerate(mp4_files, 1):
+        print(f"[{i}/{total}]")
         if rotate_video(video, video.parent):
             success += 1
         else:
