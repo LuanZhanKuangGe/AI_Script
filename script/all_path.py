@@ -45,3 +45,45 @@ PORN_CN_SHORT_MISTRALAIAI = _make_path(r"D:\Hentai-AI\Mistralaiai", "/data/Henta
 
 # Porn-VR
 PORN_VR = _make_path(r"D:\Porn-VR", "/data/Porn-VR")
+
+_ALL_PATHS = {
+    "HENTAI_RULE34": HENTAI_RULE34,
+    "HENTAI_VIDEO_HANIME": HENTAI_VIDEO_HANIME,
+    "HENTAI_PICTURE_MANGA": HENTAI_PICTURE_MANGA,
+    "HENTAI_MMD": HENTAI_MMD,
+    "JAV": JAV,
+    "PORN_WEB_REELSMUNKEY": PORN_WEB_REELSMUNKEY,
+    "PORN_WEB_REDDCLIPS": PORN_WEB_REDDCLIPS,
+    "PORN_WEB_FYPTT": PORN_WEB_FYPTT,
+    "PORN_WEB_XXXFOLLOW": PORN_WEB_XXXFOLLOW,
+    "PORN_WEB_WAPTAP": PORN_WEB_WAPTAP,
+    "PORN_WEB_TIKPORN": PORN_WEB_TIKPORN,
+    "PORN_WEB_SHARESOME": PORN_WEB_SHARESOME,
+    "PORN_WEB_ONLYTIK": PORN_WEB_ONLYTIK,
+    "PORN_WEB_OGFAP": PORN_WEB_OGFAP,
+    "PORN_WEB_HOTSCOPE": PORN_WEB_HOTSCOPE,
+    "PORN_WEB_FIKFAP": PORN_WEB_FIKFAP,
+    "PORN_CN_LUOWU": PORN_CN_LUOWU,
+    "PORN_CN_SHORT_XIAOPYIXIA1": PORN_CN_SHORT_XIAOPYIXIA1,
+    "PORN_CN_SHORT_MISTRALAIAI": PORN_CN_SHORT_MISTRALAIAI,
+    "PORN_VR": PORN_VR,
+}
+
+
+def check_paths():
+    missing = []
+    for name, path in _ALL_PATHS.items():
+        if path.exists():
+            print(f"[OK] {name} -> {path}")
+        else:
+            print(f"[MISSING] {name} -> {path}")
+            missing.append(name)
+    if missing:
+        print(f"\n共 {len(missing)} 个路径不存在")
+    else:
+        print("\n所有路径均存在")
+    return missing
+
+
+if __name__ == "__main__":
+    check_paths()
