@@ -117,7 +117,7 @@ def process_channel(channel):
     
     print(f"   JSON已更新，包含 {len(messages_to_keep)} 个文件")
     
-    if not run_command(rf".\tdl.exe dl -f .\tdl-export.json -d {target_dir}", cwd=TDL_DIR):
+    if not run_command(rf'.\tdl.exe dl -f .\tdl-export.json -d "{target_dir}"', cwd=TDL_DIR):
         print("   下载失败")
         return False
     
