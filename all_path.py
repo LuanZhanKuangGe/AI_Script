@@ -37,11 +37,11 @@ PORN_WEB_HOTSCOPE = _make_path(r"D:\Porn-Web\hotscope", "/data/Porn-Web/hotscope
 PORN_WEB_FIKFAP = _make_path(r"D:\Porn-Web\fikfap", "/data/Porn-Web/fikfap")
 
 # Porn-CN
-PORN_CN_LUOWU = _make_path(r"D:\Porn-CN\【裸舞】", "/data/Porn-CN/【裸舞】")
+PORN_CN_LUOWU = _make_path(r"D:\Hentai-Dance", "/data/Hentai-Dance")
 
 # Porn-CN-Short
-PORN_CN_SHORT_XIAOPYIXIA1 = _make_path(r"D:\Porn-CN-Short\AI生成\xiaoPyixia1", "/data/Porn-CN-Short/AI生成/xiaoPyixia1")
-PORN_CN_SHORT_MISTRALAIAI = _make_path(r"D:\Porn-CN-Short\AI生成\Mistralaiai", "/data/Porn-CN-Short/AI生成/Mistralaiai")
+PORN_CN_SHORT_XIAOPYIXIA1 = _make_path(r"D:\Hentai-AI\xiaoPyixia1", "/data/Hentai-AI/xiaoPyixia1")
+PORN_CN_SHORT_MISTRALAIAI = _make_path(r"D:\Hentai-AI\Mistralaiai", "/data/Hentai-AI/Mistralaiai")
 
 # Porn-VR
 PORN_VR = _make_path(r"D:\Porn-VR", "/data/Porn-VR")
