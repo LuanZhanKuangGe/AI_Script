@@ -5,6 +5,9 @@
 // @description  对sehuatang页面的帖子进行排序：AI/裸舞优先蓝色加粗，其他按查看数排序
 // @match        https://www.sehuatang.net/*
 // @grant        GM_xmlhttpRequest
+// @grant        GM_registerMenuCommand
+// @grant        GM_getValue
+// @grant        GM_setValue
 // @require      https://cdn.bootcdn.net/ajax/libs/jquery/3.6.0/jquery.min.js
 // @run-at       document-idle
 // ==/UserScript==
@@ -12,7 +15,8 @@
 (function($) {
     'use strict';
 
-    const aiKeywords = ['ai', '裸舞'];
+    const aiKeywords = (GM_getValue('aiKeywords', '') || 'ai,裸舞').split(',').map(s => s.trim()).filter(Boolean);
+    const notAiKeywords = (GM_getValue('notAiKeywords', '') || '').split(',').map(s => s.trim()).filter(Boolean);
 
     function getTitle(element) {
         const titleLink = $(element).find('a.xst')[0];
@@ -28,7 +32,10 @@
     }
 
     function isPriority(title) {
-        return aiKeywords.some(k => title.includes(k.toLowerCase()));
+        const matched = aiKeywords.some(k => title.includes(k.toLowerCase()));
+        if (!matched) return false;
+        if (notAiKeywords.length === 0) return true;
+        return !notAiKeywords.some(k => title.includes(k.toLowerCase()));
     }
 
     function sortThreads() {
@@ -87,6 +94,18 @@
         console.log('[Sort] 排序后帖子数量:', $table.children('tbody[id^="normalthread_"]').length);
         console.log('[Sort] === 排序结束 ===');
     }
+
+    function promptKeywords(key, label, defaultValue) {
+        const current = GM_getValue(key, '') || defaultValue;
+        const input = prompt(`请输入${label}（多个关键词用英文逗号分隔）`, current);
+        if (input !== null) {
+            GM_setValue(key, input.trim());
+            location.reload();
+        }
+    }
+
+    GM_registerMenuCommand('设置 AI 优先关键词', () => promptKeywords('aiKeywords', 'AI优先关键词', 'ai,裸舞'));
+    GM_registerMenuCommand('设置 AI 排除关键词', () => promptKeywords('notAiKeywords', 'AI排除关键词', ''));
 
     function initSort() {
         setTimeout(sortThreads, 500);
