@@ -3,6 +3,7 @@ import json
 import shutil
 import subprocess
 from pathlib import Path
+from all_path import PORN_CN_SHORT_XIAOPYIXIA1, PORN_CN_SHORT_MISTRALAIAI
 
 TDL_DIR = Path(r"C:\Softwares\tdl_Windows_64bit")
 SCRIPT_DIR = Path(__file__).parent
@@ -13,12 +14,12 @@ BLOCK_FILES = {(2462403115, '121212.mp4')}
 CHANNELS = [
     {
         'url': 'https://t.me/xiaoPyixia1',
-        'dir': Path(r"D:\Porn-CN-Short\AI生成\xiaoPyixia1"),
+        'dir': PORN_CN_SHORT_XIAOPYIXIA1,
         'check_sound': True
     },
     {
         'url': 'https://t.me/Mistralaiai',
-        'dir': Path(r"D:\Porn-CN-Short\AI生成\Mistralaiai"),
+        'dir': PORN_CN_SHORT_MISTRALAIAI,
         'check_sound': False
     },
 ]

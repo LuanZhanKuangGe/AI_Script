@@ -20,7 +20,7 @@ def width_to_k(width):
 
 
 def rename_videos_with_resolution():
-    target_dir = Path(r"D:\Porn-VR")
+    from all_path import PORN_VR as target_dir
     if not target_dir.exists():
         print(f"目录不存在: {target_dir}")
         return

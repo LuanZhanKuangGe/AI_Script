@@ -3,7 +3,7 @@ import json
 from pathlib import Path
 from tqdm import tqdm
 
-TARGET = Path(r"/data/Hentai-MMD")
+from all_path import HENTAI_MMD as TARGET
 
 
 def update():

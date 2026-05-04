@@ -1,5 +1,4 @@
 from pathlib import Path
-import platform
 import sys
 import subprocess
 from typing import Optional, List, Dict
@@ -150,10 +149,7 @@ def download_m3u8_to_mp4(session: requests.Session, m3u8_url: str, output_path: 
     return False
 
 
-if platform.system() == "Windows":
-    BASE_PATH = Path(r"D:\Porn-Web\ogfap")
-else:
-    BASE_PATH = Path(r"/data/Porn-Web/ogfap")
+from all_path import PORN_WEB_OGFAP as BASE_PATH
 
 # 常量
 SALT = "0312"  # URL 中的常量字符串

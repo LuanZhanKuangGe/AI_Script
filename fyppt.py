@@ -4,7 +4,6 @@ import requests
 from pathlib import Path
 from typing import Optional, List, Tuple
 from tqdm import tqdm
-import platform
 from urllib.parse import urlparse, urljoin
 import subprocess
 import shutil
@@ -22,11 +21,7 @@ except ImportError:
         HAS_LXML = False
         print("警告: 未安装 BeautifulSoup 或 lxml，无法解析 HTML")
 
-# 设置 BASE_PATH
-if platform.system() == "Windows":
-    BASE_PATH = Path(r"D:\Porn-Web\fyptt")
-else:
-    BASE_PATH = Path(r"/data/Porn-Web/fyptt")
+from all_path import PORN_WEB_FYPTT as BASE_PATH
 
 # 确保 BASE_PATH 存在
 BASE_PATH.mkdir(parents=True, exist_ok=True)

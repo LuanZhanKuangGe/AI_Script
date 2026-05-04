@@ -15,7 +15,9 @@ def add_manga(manga):
     database['manga'][manga_artist].append(name)
 
 
-for item in tqdm(list(Path(r"/data/Hentai-Picture/Manga").iterdir()), desc="update Manga"):
+from all_path import HENTAI_PICTURE_MANGA
+
+for item in tqdm(list(HENTAI_PICTURE_MANGA.iterdir()), desc="update Manga"):
     if item.is_dir():
         for file in item.iterdir():
             add_manga(file)

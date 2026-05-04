@@ -1,5 +1,4 @@
 import re
-import platform
 from pathlib import Path
 from typing import Optional, Dict, List
 
@@ -19,11 +18,7 @@ from tqdm import tqdm
    则使用 download_url 下载并保存为 filename
 """
 
-# BASE_PATH 设置
-if platform.system() == "Windows":
-    BASE_PATH = Path(r"D:\Porn-Web\tikporn")
-else:
-    BASE_PATH = Path(r"/data/Porn-Web/tikporn")
+from all_path import PORN_WEB_TIKPORN as BASE_PATH
 
 # 确保 BASE_PATH 存在
 BASE_PATH.mkdir(parents=True, exist_ok=True)

@@ -2,9 +2,6 @@ import json
 import requests
 from pathlib import Path
 from tqdm import tqdm
-import platform
-
-
 def download_video(url, ref, filename):
     try:
         headers = {
@@ -49,10 +46,7 @@ def download_video(url, ref, filename):
         print(f"下载失败: {url}, 错误: {e}")
         return 0
 
-if platform.system() == "Windows":
-    DOWNLOAD_PATH = Path(r"D:\Porn-Web\onlytik")
-else:
-    DOWNLOAD_PATH = Path(r"/data/Porn-Web/onlytik")
+from all_path import PORN_WEB_ONLYTIK as DOWNLOAD_PATH
 
 # API 基础 URL
 BASE_API_URL = "https://onlytik.com/api/user"

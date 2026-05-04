@@ -1,5 +1,4 @@
 from pathlib import Path
-import platform
 import sys
 import time
 from typing import Iterable, List, Optional, Tuple
@@ -191,10 +190,7 @@ def download_with_resume(session: requests.Session, url: str, file_path: Path, o
     overall_bar.update(1)
 
 
-if platform.system() == "Windows":
-    BASE_PATH = Path(r"D:\Porn-Web\xxxfollow")
-else:
-    BASE_PATH = Path(r"/data/Porn-Web/xxxfollow")
+from all_path import PORN_WEB_XXXFOLLOW as BASE_PATH
 
 session = requests.Session()
 

@@ -2,7 +2,7 @@ import os
 import re
 from pathlib import Path
 
-base_dir = r"D:\Porn-CN\【裸舞】"
+from all_path import PORN_CN_LUOWU as base_dir
 keywords = ['#主播', '#福利姬', '#舞团', '#顶级', '#人上人', '#夯', '#NPC']
 
 print("正在检查文件命名格式...\n")

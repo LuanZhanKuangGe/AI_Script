@@ -5,7 +5,7 @@ from pathlib import Path
 from tqdm import tqdm
 
 BASE_URL = "https://api.reddclips.com"
-BASE_PATH = Path(r"D:\Porn-Web\reddclips")
+from all_path import PORN_WEB_REDDCLIPS as BASE_PATH
 MAX_PAGES = int(sys.argv[1]) if len(sys.argv) > 1 else 3
 BASE_PATH.mkdir(parents=True, exist_ok=True)
 

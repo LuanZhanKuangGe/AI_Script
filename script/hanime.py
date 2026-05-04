@@ -1,5 +1,4 @@
 from pathlib import Path
-import platform
 import json
 import time
 import requests
@@ -191,10 +190,7 @@ def scan_videos(base_path: Path, check_cover: bool = True):
 
 
 if __name__ == "__main__":
-    if platform.system() == "Windows":
-        BASE_PATH = Path(r"D:\Hentai-Video\hanime.tv")
-    else:
-        BASE_PATH = Path(r"/data/Hentai-Video/hanime.tv")
+    from all_path import HENTAI_VIDEO_HANIME as BASE_PATH
 
     videos = list(BASE_PATH.rglob("*.mp4"))
     print(f"找到 {len(videos)} 个视频文件")

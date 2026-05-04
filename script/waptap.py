@@ -4,7 +4,6 @@ import requests
 from pathlib import Path
 from typing import Optional, Dict, List
 from tqdm import tqdm
-import platform
 from urllib.parse import urlparse
 
 try:
@@ -14,11 +13,7 @@ except ImportError:
     HAS_LXML = False
     print("警告: 未安装 lxml，将使用正则表达式解析 HTML")
 
-# 设置 BASE_PATH
-if platform.system() == "Windows":
-    BASE_PATH = Path(r"D:\Porn-Web\waptap")
-else:
-    BASE_PATH = Path(r"/data/Porn-Web/waptap")
+from all_path import PORN_WEB_WAPTAP as BASE_PATH
 
 # 确保 BASE_PATH 存在
 BASE_PATH.mkdir(parents=True, exist_ok=True)

@@ -1,21 +1,16 @@
 import json
-import sys
 from tqdm import tqdm
 from pathlib import Path
 from collections import defaultdict
+from all_path import JAV, make_data_path
 
 
 def get_base_path():
-    if sys.platform == "win32":
-        return Path(r"D:\JAV")
-    return Path(r"/data/JAV")
+    return JAV
 
 
 def get_other_path(name: str) -> Path:
-    base = get_base_path()
-    if sys.platform == "win32":
-        return base.parent / name
-    return Path(f"/data/{name}")
+    return make_data_path(name)
 
 
 def scan_videos(target: Path, pattern: str, desc: str, processor=None) -> list:

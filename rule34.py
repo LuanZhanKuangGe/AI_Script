@@ -1,4 +1,3 @@
-import platform
 import requests
 from bs4 import BeautifulSoup
 from pathlib import Path
@@ -58,16 +57,12 @@ def download_video(url, ref, filename):
 logging.getLogger('urllib3.connectionpool').setLevel(logging.WARNING)
 
 
-def get_data_path():
-    if platform.system() == "Windows":
-        return r"D:\Hentai-Rule34"
-    else:
-        return "/data/Hentai-Rule34"
+from all_path import HENTAI_RULE34
 
 
 class Rule34Crawler:
     def __init__(self):
-        self.target = Path(get_data_path())
+        self.target = HENTAI_RULE34
         self.existing_ids = set()
         self.artist_last_run = {}
         

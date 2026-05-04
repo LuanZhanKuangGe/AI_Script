@@ -4,12 +4,7 @@ import json
 import requests
 from pathlib import Path
 from tqdm import tqdm
-import platform
-
-if platform.system() == "Windows":
-    BASE_PATH = Path(r"D:\Porn-Web\reelsmunkey")
-else:
-    BASE_PATH = Path(r"/data/Porn-Web/reelsmunkey")
+from all_path import PORN_WEB_REELSMUNKEY as BASE_PATH
 
 BASE_PATH.mkdir(parents=True, exist_ok=True)
 

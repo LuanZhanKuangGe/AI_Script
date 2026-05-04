@@ -1,5 +1,4 @@
 from pathlib import Path
-import platform
 import sys
 import subprocess
 from typing import Optional, List
@@ -174,10 +173,7 @@ def download_m3u8_to_mp4(session: requests.Session, m3u8_url: str, output_path: 
     return False
 
 
-if platform.system() == "Windows":
-    BASE_PATH = Path(r"D:\Porn-Web\hotscope")
-else:
-    BASE_PATH = Path(r"/data/Porn-Web/hotscope")
+from all_path import PORN_WEB_HOTSCOPE as BASE_PATH
 
 # 常量
 START_PAGE = int(sys.argv[1])  # 开始页

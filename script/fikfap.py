@@ -1,15 +1,9 @@
-import platform
 import subprocess
 from pathlib import Path
 from typing import List, Optional, Dict
 
 import requests
-
-# 设置 BASE_PATH
-if platform.system() == "Windows":
-    BASE_PATH = Path(r"D:\Porn-Web\fikfap")
-else:
-    BASE_PATH = Path(r"/data/Porn-Web/fikfap")
+from all_path import PORN_WEB_FIKFAP as BASE_PATH
 
 # 确保 BASE_PATH 存在
 BASE_PATH.mkdir(parents=True, exist_ok=True)

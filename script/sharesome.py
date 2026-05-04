@@ -1,5 +1,4 @@
 from pathlib import Path
-import platform
 import sys
 from typing import Optional
 
@@ -141,10 +140,7 @@ def download_video(session: requests.Session, mp4_url: str, file_path: Path, ove
     overall_bar.update(1)
 
 
-if platform.system() == "Windows":
-    BASE_PATH = Path(r"D:\Porn-Web\sharesome")
-else:
-    BASE_PATH = Path(r"/data/Porn-Web/sharesome")
+from all_path import PORN_WEB_SHARESOME as BASE_PATH
 
 session = requests.Session()
 
