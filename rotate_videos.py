@@ -33,7 +33,7 @@ def rotate_video(video_path: Path, output_dir: Path):
     maxrate = f"{int(round(bitrate_mbps * 1.2))}M"
     bufsize = f"{int(round(bitrate_mbps * 2))}M"
 
-    output_path = output_dir / f"rotated_{video_path.name}"
+    output_path = output_dir / f"rotated_{video_path.stem}.mp4"
 
     cmd = [
         'ffmpeg', '-hwaccel', 'cuda', '-i', str(video_path),
@@ -67,18 +67,18 @@ def main():
         print(f"文件夹不存在: {folder}")
         return
 
-    mp4_files = list(folder.rglob('*.mp4'))
-    if not mp4_files:
-        print(f"没有找到mp4文件: {folder}")
+    video_files = list(folder.rglob('*.mp4')) + list(folder.rglob('*.mov'))
+    if not video_files:
+        print(f"没有找到mp4/mov文件: {folder}")
         return
 
-    print(f"找到 {len(mp4_files)} 个mp4文件")
+    print(f"找到 {len(video_files)} 个视频文件")
 
     success = 0
     failed = 0
 
-    total = len(mp4_files)
-    for i, video in enumerate(mp4_files, 1):
+    total = len(video_files)
+    for i, video in enumerate(video_files, 1):
         start = time.time()
         if rotate_video(video, video.parent):
             success += 1
