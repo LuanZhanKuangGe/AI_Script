@@ -46,7 +46,14 @@ def process_channel(channel):
     print(f"目标目录: {target_dir}")
     print('='*60)
     
-    target_dir.mkdir(parents=True, exist_ok=True)
+    if not target_dir.exists():
+        try:
+            target_dir.mkdir(parents=True, exist_ok=True)
+            print(f"   创建目录: {target_dir}")
+        except Exception as e:
+            print(f"   目录创建失败: {target_dir}")
+            print(f"   错误: {e}")
+            return False
     
     print("1. 导出聊天记录...")
     if not run_command(r".\tdl.exe chat export -c " + url, cwd=TDL_DIR):
