@@ -3,7 +3,7 @@ import json
 import shutil
 import subprocess
 from pathlib import Path
-from all_path import PORN_CN_SHORT_XIAOPYIXIA1, PORN_CN_SHORT_MISTRALAIAI
+from all_path import PORN_CN_SHORT_XIAOPYIXIA1, PORN_CN_SHORT_MISTRALAIAI, PORN_CN_SHORT_QINGQINGCAOYUAN
 
 TDL_DIR = Path(r"C:\Softwares\tdl_Windows_64bit")
 SCRIPT_DIR = Path(__file__).parent
@@ -12,6 +12,11 @@ EXPORT_FILE = TDL_DIR / "tdl-export.json"
 BLOCK_FILES = {(2462403115, '121212.mp4')}
 
 CHANNELS = [
+    {
+        'url': 'https://t.me/qingqingcaoyuanruxuechu',
+        'dir': PORN_CN_SHORT_QINGQINGCAOYUAN,
+        'check_sound': True
+    },
     {
         'url': 'https://t.me/xiaoPyixia1',
         'dir': PORN_CN_SHORT_XIAOPYIXIA1,
@@ -124,7 +129,7 @@ def process_channel(channel):
     
     print(f"   JSON已更新，包含 {len(messages_to_keep)} 个文件")
     
-    if not run_command(rf'.\tdl.exe dl -f .\tdl-export.json -d "{target_dir}"', cwd=TDL_DIR):
+    if not run_command(rf'.\tdl.exe dl --no-continue -f .\tdl-export.json -d "{target_dir}"', cwd=TDL_DIR):
         print("   下载失败")
         return False
     
