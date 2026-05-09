@@ -21,8 +21,12 @@
 
     function getDate() {
         const el = document.querySelector('i.bi.bi-calendar3');
+        console.log('[debug] calendar element:', el);
         if (!el) return '';
-        const m = el.textContent.trim().match(/\[(\d{4}-\d{2}-\d{2})\]/);
+        const raw = el.textContent.trim();
+        console.log('[debug] calendar text:', raw);
+        const m = raw.match(/\[(\d{4}-\d{2}-\d{2})\]/);
+        console.log('[debug] regex match:', m);
         return m ? m[0] : '';
     }
 
@@ -51,6 +55,7 @@
         copyBtn.className = 'btn btn-primary';
         copyBtn.addEventListener('click', function() {
             const text = (date ? date + ' ' : '') + title;
+            console.log('[debug] date:', JSON.stringify(date), 'title:', JSON.stringify(title), 'final:', JSON.stringify(text));
             navigator.clipboard.writeText(text).then(function() {
                 copyBtn.textContent = 'Copied!';
                 setTimeout(function() { copyBtn.textContent = 'Copy Title'; }, 2000);
@@ -62,5 +67,19 @@
         container.appendChild(wrapper);
     }
 
-    window.addEventListener('load', addButtons);
+    function init() {
+        const h1 = document.querySelector('h1.watch__title');
+        if (!h1) {
+            console.log('[debug] h1.watch__title not found, retrying in 1s');
+            setTimeout(init, 1000);
+            return;
+        }
+        addButtons();
+    }
+
+    if (document.readyState === 'complete') {
+        init();
+    } else {
+        window.addEventListener('load', init);
+    }
 })();
