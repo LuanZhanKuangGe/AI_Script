@@ -19,22 +19,48 @@
         return clone.textContent.trim();
     }
 
-    function addButton() {
+    function getDate() {
+        const el = document.querySelector('i.bi.bi-calendar3');
+        if (!el) return '';
+        const m = el.textContent.trim().match(/\[(\d{4}-\d{2}-\d{2})\]/);
+        return m ? m[0] : '';
+    }
+
+    function addButtons() {
         const title = getTitle();
+        const date = getDate();
         if (!title) return;
 
         const container = document.querySelector('.watch__title')?.closest('.container-fluid');
         if (!container) return;
 
-        const btn = document.createElement('a');
-        btn.href = 'https://www.btdig.com/search?q=' + encodeURIComponent(title);
-        btn.target = '_blank';
-        btn.rel = 'noopener noreferrer';
-        btn.textContent = 'BTDig Search';
-        btn.className = 'btn btn-primary mt-15';
-        btn.style.marginLeft = '10px';
-        container.appendChild(btn);
+        const wrapper = document.createElement('div');
+        wrapper.className = 'mt-15';
+        wrapper.style.display = 'flex';
+        wrapper.style.gap = '10px';
+
+        const btdigBtn = document.createElement('a');
+        btdigBtn.href = 'https://www.btdig.com/search?q=' + encodeURIComponent(title);
+        btdigBtn.target = '_blank';
+        btdigBtn.rel = 'noopener noreferrer';
+        btdigBtn.textContent = 'BTDig Search';
+        btdigBtn.className = 'btn btn-primary';
+
+        const copyBtn = document.createElement('button');
+        copyBtn.textContent = 'Copy Title';
+        copyBtn.className = 'btn btn-primary';
+        copyBtn.addEventListener('click', function() {
+            const text = (date ? date + ' ' : '') + title;
+            navigator.clipboard.writeText(text).then(function() {
+                copyBtn.textContent = 'Copied!';
+                setTimeout(function() { copyBtn.textContent = 'Copy Title'; }, 2000);
+            });
+        });
+
+        wrapper.appendChild(btdigBtn);
+        wrapper.appendChild(copyBtn);
+        container.appendChild(wrapper);
     }
 
-    window.addEventListener('load', addButton);
+    window.addEventListener('load', addButtons);
 })();
