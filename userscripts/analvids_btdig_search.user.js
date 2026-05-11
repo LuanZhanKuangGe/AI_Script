@@ -26,8 +26,9 @@
         const raw = el.textContent.trim();
         console.log('[debug] calendar text:', raw);
         const m = raw.match(/\[(\d{4}-\d{2}-\d{2})\]/);
-        console.log('[debug] regex match:', m);
-        return m ? m[0] : '';
+        if (m) return m[0];
+        const n = raw.match(/(\d{4}-\d{2}-\d{2})/);
+        return n ? '[' + n[1] + ']' : '';
     }
 
     function addButtons() {
