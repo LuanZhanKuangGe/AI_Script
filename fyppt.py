@@ -108,9 +108,9 @@ def extract_video_info(url: str) -> Optional[tuple]:
 def get_video_url(session: requests.Session, page_url: str) -> Optional[Tuple[str, str]]:
     """从视频页面获取视频URL和类型
     步骤：
-    1. 从页面中找到 iframe 的 src (arve-iframe 类)
+    1. 从页面中找到 iframe 的 data-src-no-ap (arve-iframe 类)
     2. 访问 iframe URL
-    3. 从 iframe 页面中提取 source 标签的 src 或 m3u8 URL
+    3. 从 iframe 页面中提取 source 标签的 src
     返回: (video_url, video_type) 元组，video_type 可能是 'mp4' 或 'm3u8'
     """
     try:
@@ -120,55 +120,44 @@ def get_video_url(session: requests.Session, page_url: str) -> Optional[Tuple[st
         
         iframe_url = None
         
-        # 查找 iframe 的 src 属性（优先使用 arve-iframe 类）
         if HAS_BS4:
             soup = BeautifulSoup(response.text, 'html.parser')
-            # 查找 arve-iframe 类的 iframe
             iframe_tag = soup.select_one('iframe.arve-iframe')
-            if not iframe_tag:
-                # 如果没有找到，查找所有 iframe
-                iframe_tag = soup.select_one('iframe[src*="fypttstr.php"]')
             if iframe_tag:
-                iframe_url = iframe_tag.get('src')
-                # 如果 src 为空，尝试 data-src-no-ap 属性
-                if not iframe_url:
-                    iframe_url = iframe_tag.get('data-src-no-ap')
+                iframe_url = iframe_tag.get('data-src-no-ap') or iframe_tag.get('src')
+            if not iframe_tag or not iframe_url:
+                iframe_tag = soup.select_one('iframe[src*="fypttstr.php"], iframe[src*="fypttjwstrhls.php"]')
+                if iframe_tag:
+                    iframe_url = iframe_tag.get('data-src-no-ap') or iframe_tag.get('src')
         elif HAS_LXML:
             doc = html.fromstring(response.text)
             iframe_elements = doc.cssselect('iframe.arve-iframe')
             if not iframe_elements:
-                iframe_elements = doc.cssselect('iframe[src*="fypttstr.php"]')
+                iframe_elements = doc.cssselect('iframe[src*="fypttstr.php"], iframe[src*="fypttjwstrhls.php"]')
             if iframe_elements:
-                iframe_url = iframe_elements[0].get('src')
-                if not iframe_url:
-                    iframe_url = iframe_elements[0].get('data-src-no-ap')
+                iframe_url = iframe_elements[0].get('data-src-no-ap') or iframe_elements[0].get('src')
         else:
-            # 使用正则表达式查找 iframe src
-            pattern = r'<iframe[^>]*class="[^"]*arve-iframe[^"]*"[^>]*src="([^"]+)"'
+            pattern = r'<iframe[^>]*class="[^"]*arve-iframe[^"]*"[^>]*data-src-no-ap="([^"]+)"'
             match = re.search(pattern, response.text)
-            if not match:
-                pattern = r'<iframe[^>]*src="([^"]*fypttstr\.php[^"]*)"'
-                match = re.search(pattern, response.text)
             if match:
                 iframe_url = match.group(1)
             else:
-                # 尝试查找 data-src-no-ap
-                pattern = r'<iframe[^>]*data-src-no-ap="([^"]*fypttstr\.php[^"]*)"'
+                pattern = r'<iframe[^>]*data-src-no-ap="([^"]*fyptt(?:jw)?str(?:hls)?\.php[^"]*)"'
                 match = re.search(pattern, response.text)
                 if match:
                     iframe_url = match.group(1)
+                else:
+                    pattern = r'<iframe[^>]*src="([^"]*fyptt(?:jw)?str(?:hls)?\.php[^"]*)"'
+                    match = re.search(pattern, response.text)
+                    if match:
+                        iframe_url = match.group(1)
         
         if not iframe_url:
             print(f"    未找到 iframe URL")
             return None
         
-        # 处理 HTML 实体（如 &#038; -> &）
-        if '&#038;' in iframe_url:
-            iframe_url = iframe_url.replace('&#038;', '&')
-        if '&amp;' in iframe_url:
-            iframe_url = iframe_url.replace('&amp;', '&')
+        iframe_url = iframe_url.replace('&#038;', '&').replace('&amp;', '&')
         
-        # 处理相对URL
         if iframe_url.startswith('//'):
             iframe_url = 'https:' + iframe_url
         elif iframe_url.startswith('/'):
@@ -180,7 +169,6 @@ def get_video_url(session: requests.Session, page_url: str) -> Optional[Tuple[st
         iframe_response = session.get(iframe_url, headers=HEADERS, timeout=30)
         iframe_response.raise_for_status()
         
-        # 检查 Content-Type，如果是图片/webp 则直接下载
         content_type = iframe_response.headers.get('Content-Type', '')
         if 'image/' in content_type:
             print(f"    检测到图片格式 ({content_type})，直接下载")
@@ -188,56 +176,66 @@ def get_video_url(session: requests.Session, page_url: str) -> Optional[Tuple[st
         
         iframe_text = iframe_response.text
         
-        # 第三步：优先查找 mp4（source 标签）
+        # 第三步：查找 source 标签（mp4 或 m3u8）
         video_download_url = None
+        video_type = None
         
         if HAS_BS4:
             iframe_soup = BeautifulSoup(iframe_text, 'html.parser')
-            source_tag = iframe_soup.select_one('source[type="video/mp4"]')
+            source_tag = iframe_soup.select_one('source[type="video/mp4"], source[src*=".m3u8"], source[src*=".mp4"]')
             if source_tag:
                 video_download_url = source_tag.get('src')
+                video_type = 'm3u8' if '.m3u8' in (video_download_url or '') else 'mp4'
+            if not video_download_url:
+                video_tag = iframe_soup.select_one('video[src*=".mp4"], video[src*=".m3u8"]')
+                if video_tag:
+                    video_download_url = video_tag.get('src')
+                    video_type = 'm3u8' if '.m3u8' in (video_download_url or '') else 'mp4'
         elif HAS_LXML:
             iframe_doc = html.fromstring(iframe_text)
-            source_elements = iframe_doc.cssselect('source[type="video/mp4"]')
-            if source_elements:
-                video_download_url = source_elements[0].get('src')
+            source_elements = iframe_doc.cssselect('source')
+            for src_el in source_elements:
+                src = src_el.get('src', '')
+                if '.m3u8' in src:
+                    video_download_url = src
+                    video_type = 'm3u8'
+                    break
+                elif '.mp4' in src or src_el.get('type') == 'video/mp4':
+                    video_download_url = src
+                    video_type = 'mp4'
+                    break
+            if not video_download_url:
+                video_elements = iframe_doc.cssselect('video')
+                for v_el in video_elements:
+                    src = v_el.get('src', '')
+                    if '.mp4' in src or '.m3u8' in src:
+                        video_download_url = src
+                        video_type = 'm3u8' if '.m3u8' in src else 'mp4'
+                        break
         else:
-            # 使用正则表达式查找 mp4
-            pattern = r'<source[^>]*src="([^"]+)"[^>]*type="video/mp4"'
+            pattern = r'<source[^>]*src="([^"]+\.(?:mp4|m3u8)[^"]*)"'
             match = re.search(pattern, iframe_text)
             if match:
                 video_download_url = match.group(1)
+                video_type = 'm3u8' if '.m3u8' in video_download_url else 'mp4'
+            if not video_download_url:
+                pattern = r'<video[^>]*src="([^"]+\.(?:mp4|m3u8)[^"]*)"'
+                match = re.search(pattern, iframe_text)
+                if match:
+                    video_download_url = match.group(1)
+                    video_type = 'm3u8' if '.m3u8' in video_download_url else 'mp4'
         
-        # 如果找到了 mp4，直接返回
         if video_download_url:
-            # 处理相对URL
+            video_download_url = video_download_url.replace('&#038;', '&').replace('&amp;', '&')
             if video_download_url.startswith('//'):
                 video_download_url = 'https:' + video_download_url
             elif video_download_url.startswith('/'):
                 video_download_url = 'https://fyptt.to' + video_download_url
-            print(f"    找到视频下载地址 (mp4): {video_download_url}")
-            return (video_download_url, 'mp4')
-        
-        # 如果没有找到 mp4，检查是否是 jwplayer 页面（包含 m3u8）
-        is_jwplayer = 'jwplayer' in iframe_text.lower() and 'player.setup' in iframe_text
-        if is_jwplayer:
-            # 从 jwplayer.setup 中提取 m3u8 URL
-            # 查找 file: "https://stream.fyptt.to/hls/XXX.m3u8?token=..."
-            pattern = r'file:\s*["\']([^"\']+\.m3u8[^"\']*)["\']'
-            match = re.search(pattern, iframe_text)
-            if match:
-                m3u8_url = match.group(1)
-                # 处理相对URL
-                if m3u8_url.startswith('//'):
-                    m3u8_url = 'https:' + m3u8_url
-                elif m3u8_url.startswith('/'):
-                    m3u8_url = 'https://fyptt.to' + m3u8_url
-                print(f"    找到 m3u8 地址: {m3u8_url}")
-                return (m3u8_url, 'm3u8')
+            print(f"    找到视频下载地址 ({video_type}): {video_download_url}")
+            return (video_download_url, video_type)
         
         print(f"    未找到视频下载地址")
         
-        # 如果 poster 参数是 webp，尝试直接下载
         poster_match = re.search(r'poster=([^&]+)', iframe_url)
         if poster_match:
             poster_url = unquote(poster_match.group(1))
