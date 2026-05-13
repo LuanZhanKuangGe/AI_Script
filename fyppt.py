@@ -257,6 +257,14 @@ def get_video_url(
                     video_download_url = match.group(1)
                     video_type = "m3u8" if ".m3u8" in video_download_url else "mp4"
 
+        if not video_download_url:
+            jw_match = re.search(
+                r'file:\s*"([^"]+\.(?:mp4|m3u8)[^"]*)"', iframe_text
+            )
+            if jw_match:
+                video_download_url = jw_match.group(1)
+                video_type = "m3u8" if ".m3u8" in video_download_url else "mp4"
+
         if video_download_url:
             video_download_url = video_download_url.replace("&#038;", "&").replace(
                 "&amp;", "&"
@@ -270,13 +278,22 @@ def get_video_url(
 
         print(f"    未找到视频下载地址")
 
-        poster_match = re.search(r"poster=([^&]+)", iframe_url)
-        if poster_match:
-            poster_url = unquote(poster_match.group(1))
-            if poster_url.endswith(".webp"):
-                poster_full_url = urljoin("https://fyptt.to/", poster_url)
-                print(f"    尝试下载 poster webp: {poster_full_url}")
-                return (poster_full_url, "mp4")
+        poster_url = None
+        # 尝试从 JavaScript 中提取 image 作为 poster 备选
+        img_match = re.search(r'image:\s*"([^"]+\.(?:webp|jpg|jpeg|png))"', iframe_text)
+        if img_match:
+            poster_url = img_match.group(1)
+
+        if not poster_url:
+            poster_match = re.search(r"poster=([^&]+)", iframe_url)
+            if poster_match:
+                poster_url = unquote(poster_match.group(1))
+
+        if poster_url:
+            if "://" not in poster_url:
+                poster_url = urljoin("https://fyptt.to/", poster_url)
+            print(f"    尝试下载 poster webp: {poster_url}")
+            return (poster_url, "mp4")
 
         return None
 
