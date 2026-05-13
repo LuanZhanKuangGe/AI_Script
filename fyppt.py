@@ -4,7 +4,7 @@ import requests
 from pathlib import Path
 from typing import Optional, List, Tuple
 from tqdm import tqdm
-from urllib.parse import urlparse, urljoin
+from urllib.parse import urlparse, urljoin, unquote
 import subprocess
 import shutil
 import hashlib
@@ -179,6 +179,13 @@ def get_video_url(session: requests.Session, page_url: str) -> Optional[Tuple[st
         # 第二步：访问 iframe URL
         iframe_response = session.get(iframe_url, headers=HEADERS, timeout=30)
         iframe_response.raise_for_status()
+        
+        # 检查 Content-Type，如果是图片/webp 则直接下载
+        content_type = iframe_response.headers.get('Content-Type', '')
+        if 'image/' in content_type:
+            print(f"    检测到图片格式 ({content_type})，直接下载")
+            return (iframe_url, 'mp4')
+        
         iframe_text = iframe_response.text
         
         # 第三步：优先查找 mp4（source 标签）
@@ -229,6 +236,16 @@ def get_video_url(session: requests.Session, page_url: str) -> Optional[Tuple[st
                 return (m3u8_url, 'm3u8')
         
         print(f"    未找到视频下载地址")
+        
+        # 如果 poster 参数是 webp，尝试直接下载
+        poster_match = re.search(r'poster=([^&]+)', iframe_url)
+        if poster_match:
+            poster_url = unquote(poster_match.group(1))
+            if poster_url.endswith('.webp'):
+                poster_full_url = urljoin('https://fyptt.to/', poster_url)
+                print(f"    尝试下载 poster webp: {poster_full_url}")
+                return (poster_full_url, 'mp4')
+        
         return None
     
     except Exception as e:
