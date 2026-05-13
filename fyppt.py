@@ -1,6 +1,7 @@
 import sys
 import re
 import requests
+import cloudscraper
 from pathlib import Path
 from typing import Optional, List, Tuple
 from tqdm import tqdm
@@ -487,12 +488,9 @@ def main():
         print("安装命令: pip install beautifulsoup4 或 pip install lxml")
         return
     
-    # 创建会话并先访问首页获取 cookies
-    session = requests.Session()
-    try:
-        session.get('https://fyptt.to/', headers=HEADERS, timeout=30)
-    except Exception:
-        pass
+    # 创建 cloudscraper 会话绕过 Cloudflare
+    session = cloudscraper.create_scraper()
+    session.headers.update(HEADERS)
     
     all_video_urls = []
     
