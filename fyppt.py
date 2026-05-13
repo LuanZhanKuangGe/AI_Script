@@ -290,7 +290,6 @@ def download_m3u8_to_mp4(session: requests.Session, m3u8_url: str, filepath: Pat
         }
         
         # 使用 ffmpeg 下载并转换
-        # ffmpeg -i "m3u8_url" -c copy -bsf:a aac_adtstoasc -y output.mp4
         cmd = [
             ffmpeg_path,
             '-i', m3u8_url,
@@ -298,23 +297,31 @@ def download_m3u8_to_mp4(session: requests.Session, m3u8_url: str, filepath: Pat
             '-bsf:a', 'aac_adtstoasc',
             '-headers', f'User-Agent: {download_headers["User-Agent"]}',
             '-headers', f'Referer: {referer}',
-            '-y',  # 覆盖输出文件
+            '-y',
             str(temp_filepath)
         ]
         
-        # 执行 ffmpeg 命令
         process = subprocess.Popen(
             cmd,
-            stdout=subprocess.PIPE,
+            stdout=subprocess.DEVNULL,
             stderr=subprocess.PIPE,
-            universal_newlines=True
+            universal_newlines=True,
+            bufsize=1
         )
         
-        # 等待完成
-        stdout, stderr = process.communicate()
+        last_time = None
+        for line in process.stderr:
+            line = line.strip()
+            m = re.search(r'time=(\d+:\d+:\d+\.\d+)', line)
+            if m and m.group(1) != last_time:
+                last_time = m.group(1)
+                print(f"    \r    进度: {last_time}", end='', flush=True)
+        
+        process.wait()
+        print()
         
         if process.returncode != 0:
-            print(f"    ffmpeg 转换失败: {stderr}")
+            print(f"    ffmpeg 转换失败")
             if temp_filepath.exists():
                 temp_filepath.unlink()
             return False
