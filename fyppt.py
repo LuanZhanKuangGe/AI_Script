@@ -486,28 +486,62 @@ def main():
     
     print(f"\n  共获取到 {len(all_video_urls)} 个视频链接")
     
-    # 第二阶段：下载视频
-    print(f"\n第二阶段：开始下载视频...")
+    # 过滤已存在的视频
+    print(f"\n第二阶段：过滤已存在的视频...")
+    pending = []
+    for video_url in all_video_urls:
+        info = extract_video_info(video_url)
+        if not info:
+            continue
+        video_id, title = info
+        clean_title = validate_title(title)
+        filename = f"[{video_id}]{clean_title}.mp4"
+        filepath = BASE_PATH / filename
+        if filepath.exists():
+            print(f"  跳过已存在: {filename}")
+        else:
+            pending.append((video_url, filename))
+    
+    print(f"\n  需要下载: {len(pending)}/{len(all_video_urls)} 个")
+    
+    # 第三阶段：下载视频
+    if not pending:
+        print(f"\n所有视频已存在，无需下载")
+        return
+    
+    print(f"\n第三阶段：开始下载视频...")
     total_downloaded = 0
-    total_skipped = 0
     total_failed = 0
     
-    for idx, video_url in enumerate(all_video_urls, 1):
-        print(f"  [{idx}/{len(all_video_urls)}]")
-        success, skipped = process_video(session, video_url)
-        if success and skipped:
-            total_skipped += 1
-        elif success:
-            total_downloaded += 1
-        else:
+    for idx, (video_url, filename) in enumerate(pending, 1):
+        print(f"  [{idx}/{len(pending)}]")
+        print(f"  处理视频: {filename}")
+        video_info = get_video_url(session, video_url)
+        if not video_info:
+            print(f"    无法获取视频下载URL")
             total_failed += 1
+            continue
+        
+        video_download_url, video_type = video_info
+        filepath = BASE_PATH / filename
+        
+        if video_type == 'm3u8':
+            if download_m3u8_to_mp4(session, video_download_url, filepath, video_url):
+                total_downloaded += 1
+            else:
+                total_failed += 1
+        else:
+            if download_file(session, video_download_url, filepath, video_url):
+                total_downloaded += 1
+            else:
+                total_failed += 1
     
     # 输出统计信息
     print(f"\n{'='*60}")
     print("爬取完成！")
     print(f"  总视频数: {len(all_video_urls)} 个")
     print(f"  下载成功: {total_downloaded} 个")
-    print(f"  已跳过: {total_skipped} 个")
+    print(f"  已跳过: {len(all_video_urls) - len(pending)} 个")
     print(f"  下载失败: {total_failed} 个")
     print(f"{'='*60}")
 
