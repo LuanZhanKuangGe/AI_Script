@@ -307,7 +307,7 @@ def warmup_session(session: requests.Session) -> None:
         pass
 
 
-def process_actor(session: requests.Session, actor_name: str) -> None:
+def process_actor(session: requests.Session, actor_name: str, folder_name: str) -> None:
     print(f"\n{'='*60}")
     print(f"处理演员: {actor_name}")
     print(f"{'='*60}")
@@ -319,7 +319,7 @@ def process_actor(session: requests.Session, actor_name: str) -> None:
 
     print(f"  用户 ID: {user_id}")
 
-    actor_dir = BASE_PATH / actor_name
+    actor_dir = BASE_PATH / folder_name
     actor_dir.mkdir(parents=True, exist_ok=True)
 
     print(f"\n第一阶段：获取所有视频信息...")
@@ -372,22 +372,23 @@ def main():
     actors = []
     for f in BASE_PATH.iterdir():
         if f.is_dir() and f.name.endswith('@xfree'):
-            actor_name = f.name[:-len('@xfree')]
-            actors.append(actor_name)
+            folder_name = f.name
+            actor_name = folder_name[:-len('@xfree')]
+            actors.append((actor_name, folder_name))
 
     if not actors:
         print(f"BASE_PATH 下没有找到 @xfree 子文件夹")
         return
 
-    print(f"找到 {len(actors)} 个 @xfree 演员: {', '.join(actors)}")
+    print(f"找到 {len(actors)} 个 @xfree 演员: {', '.join(a[0] for a in actors)}")
 
     session = cloudscraper.create_scraper()
     session.headers.update(HEADERS)
     warmup_session(session)
 
-    for actor_name in actors:
+    for actor_name, folder_name in actors:
         try:
-            process_actor(session, actor_name)
+            process_actor(session, actor_name, folder_name)
         except Exception as e:
             print(f"处理演员 {actor_name} 时发生错误: {e}")
             continue
