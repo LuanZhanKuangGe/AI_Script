@@ -174,11 +174,14 @@ def process_user(session: requests.Session, username: str, folder_name: str) -> 
         print(f"  无法获取用户 id，跳过用户: {username}")
         return
 
-    # ========= 第一阶段：获取全部视频信息 =========
-    print("\n第一阶段：获取全部视频信息...")
-    all_videos: List[Dict] = []
+    # ========= 第一阶段：获取视频信息（边取边检查，全存在则停止）=========
+    print("\n第一阶段：获取视频信息...")
+    pending: List[Dict] = []
     offset = 0
     page_size = 30
+    total_fetched = 0
+
+    referer = f"https://tik.porn/{username}"
 
     while True:
         data = fetch_videos_page(session, user_id, offset)
@@ -199,56 +202,55 @@ def process_user(session: requests.Session, username: str, folder_name: str) -> 
             print("  本页无视频内容，结束")
             break
 
-        print(f"  本页视频数: {len(videos)}")
-
-        # 收集视频信息（只记录必要字段）
+        page_new = 0
+        page_existing = 0
         for video in videos:
             filename = video.get("filename")
             download_url = video.get("download_url")
-
             if not filename or not download_url:
                 continue
+            total_fetched += 1
+            if (user_dir / filename).exists():
+                page_existing += 1
+            else:
+                page_new += 1
+                pending.append({"filename": filename, "download_url": download_url})
 
-            all_videos.append(
-                {
-                    "filename": filename,
-                    "download_url": download_url,
-                }
-            )
+        print(f"  本页 {len(videos)} 个（新 {page_new}，已存在 {page_existing}）")
+
+        # 如果本页所有视频都已存在，后续页面只会更旧，直接停止
+        if page_new == 0 and page_existing > 0:
+            print(f"  本页全部已存在，停止翻页")
+            break
 
         offset += page_size
 
-    total_videos = len(all_videos)
-    print(f"\n  共获取到视频: {total_videos} 个")
+    print(f"\n  接口共返回 {total_fetched} 个视频，待下载 {len(pending)} 个")
 
-    # ========= 第二阶段：统一下载（使用临时文件，未完成不会保存）=========
-    print("\n第二阶段：开始统一下载...")
+    # ========= 第二阶段：下载未存在的视频 =========
+    if not pending:
+        print("  无新视频需要下载")
+        print(f"\n用户 {username} 处理完成:\n  总视频数(接口返回): {total_fetched}\n  全部已存在")
+        return
+
+    print(f"\n第二阶段：开始下载 {len(pending)} 个新视频...")
     downloaded = 0
-    skipped = 0
     failed = 0
 
-    referer = f"https://tik.porn/{username}"
-
-    for idx, info in enumerate(all_videos, 1):
+    for idx, info in enumerate(pending, 1):
         filename = info["filename"]
         download_url = info["download_url"]
         filepath = user_dir / filename
 
-        # 再次检查文件是否已存在
-        if filepath.exists():
-            skipped += 1
-            continue
-
-        print(f"  [{idx}/{total_videos}] {filename}")
+        print(f"  [{idx}/{len(pending)}] {filename}")
         if download_file(session, download_url, filepath, referer):
             downloaded += 1
         else:
             failed += 1
 
     print(f"\n用户 {username} 处理完成:")
-    print(f"  总视频数(接口返回): {total_videos}")
+    print(f"  总视频数(接口返回): {total_fetched}")
     print(f"  下载成功: {downloaded}")
-    print(f"  已存在(跳过): {skipped}")
     print(f"  下载失败: {failed}")
 
 
