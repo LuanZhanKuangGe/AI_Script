@@ -140,42 +140,80 @@ def download_video(session: requests.Session, mp4_url: str, file_path: Path, ove
     overall_bar.update(1)
 
 
-from all_path import PORN_WEB_SHARESOME as BASE_PATH
+from all_path import PORN_ONLYFANS as BASE_PATH
 
-session = requests.Session()
 
-for folder in BASE_PATH.iterdir():
-    if not folder.is_dir():
-        continue
-    username = folder.name
-    print(f"开始处理: {username}")
-    
-    # 获取用户 id
+def process_user(session: requests.Session, username: str, folder_name: str) -> None:
+    print(f"\n{'=' * 60}")
+    print(f"处理用户: {username}")
+    print(f"{'=' * 60}")
+
+    user_dir = BASE_PATH / folder_name
+    user_dir.mkdir(parents=True, exist_ok=True)
+
     user_id = get_user_id(session, username)
     if not user_id:
         print(f"[{username}] 无法获取用户 id，跳过")
-        continue
-    
-    # 收集需要下载的视频
+        return
+
     video_tasks = []
     for video in iter_videos(session, user_id):
         if video.get("sound") == 1:
             mp4_url = video.get("mp4_url")
             if not mp4_url:
                 continue
-            # 使用 obj_id 或 id 作为文件名
             video_id = video.get("obj_id") or video.get("id", "unknown")
             filename = f"{video_id}.MP4"
-            file_path = folder / filename
+            file_path = user_dir / filename
             video_tasks.append((mp4_url, file_path))
-    
+
     total_files = len(video_tasks)
     if not total_files:
         print(f"[{username}] 无可下载视频")
-        continue
-    
+        return
+
     print(f"[{username}] 找到 {total_files} 个视频需要下载")
     overall = _progress_bar(total_files, desc=f"{username} 总进度", unit="file")
     for mp4_url, file_path in video_tasks:
         download_video(session, mp4_url, file_path, overall)
     overall.close()
+
+    print(f"用户 {username} 处理完成")
+
+
+def main():
+    print(f"BASE_PATH: {BASE_PATH}")
+
+    if not BASE_PATH.exists():
+        print(f"BASE_PATH 不存在: {BASE_PATH}")
+        return
+
+    users = []
+    for f in BASE_PATH.iterdir():
+        if f.is_dir() and f.name.endswith('@sharesome'):
+            folder_name = f.name
+            username = folder_name[:-len('@sharesome')]
+            users.append((username, folder_name))
+
+    if not users:
+        print("BASE_PATH 下没有找到 @sharesome 子文件夹")
+        return
+
+    print(f"找到 {len(users)} 个 @sharesome 用户: {', '.join(u[0] for u in users)}")
+
+    session = requests.Session()
+
+    for username, folder_name in users:
+        try:
+            process_user(session, username, folder_name)
+        except Exception as e:
+            print(f"处理用户 {username} 时发生错误: {e}")
+            continue
+
+    print(f"\n{'=' * 60}")
+    print("所有用户处理完成！")
+    print(f"{'=' * 60}")
+
+
+if __name__ == "__main__":
+    main()
