@@ -33,7 +33,7 @@ class ScriptRunner:
     def run(self):
         with open(self.log_file, "a", encoding="utf-8") as lf:
             lf.write(f"\n--- {self._ts()} START ---\n")
-            env = {**os.environ, "PYTHONUNBUFFERED": "1"}
+            env = {**os.environ, "PYTHONUNBUFFERED": "1", "PYTHONIOENCODING": "utf-8"}
             self.proc = subprocess.Popen(
                 [sys.executable, str(self.path), self.mode],
                 stdout=subprocess.PIPE,
