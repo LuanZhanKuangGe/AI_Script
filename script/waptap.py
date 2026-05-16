@@ -13,7 +13,7 @@ except ImportError:
     HAS_LXML = False
     print("警告: 未安装 lxml，将使用正则表达式解析 HTML")
 
-from all_path import PORN_WEB_WAPTAP as BASE_PATH
+from all_path import PORN_ONLYFANS as BASE_PATH
 
 # 确保 BASE_PATH 存在
 BASE_PATH.mkdir(parents=True, exist_ok=True)
@@ -167,9 +167,9 @@ def download_file(session: requests.Session, url: str, filepath: Path, referer: 
         return False
 
 
-def process_user(session: requests.Session, username: str) -> None:
+def process_user(session: requests.Session, username: str, folder_name: str) -> None:
     """处理单个用户的所有媒体
-    
+     
     分为两个阶段：
     1. 获取用户所有视频信息
     2. 统一批量下载所有视频
@@ -185,7 +185,7 @@ def process_user(session: requests.Session, username: str) -> None:
         return
     
     # 创建用户目录
-    user_dir = BASE_PATH / username
+    user_dir = BASE_PATH / folder_name
     user_dir.mkdir(parents=True, exist_ok=True)
     
     # ========== 第一阶段：获取所有视频信息 ==========
@@ -291,22 +291,24 @@ def main():
         print(f"BASE_PATH 不存在: {BASE_PATH}")
         return
     
-    # 获取所有子文件夹
-    users = [f.name for f in BASE_PATH.iterdir() if f.is_dir()]
-    
+    users = []
+    for f in BASE_PATH.iterdir():
+        if f.is_dir() and f.name.endswith('@waptap'):
+            folder_name = f.name
+            username = folder_name[:-len('@waptap')]
+            users.append((username, folder_name))
+
     if not users:
-        print(f"BASE_PATH 下没有找到子文件夹")
+        print(f"BASE_PATH 下没有找到 @waptap 子文件夹")
         return
-    
-    print(f"找到 {len(users)} 个用户文件夹: {', '.join(users)}")
-    
-    # 创建会话
+
+    print(f"找到 {len(users)} 个 @waptap 用户: {', '.join(u[0] for u in users)}")
+
     session = requests.Session()
-    
-    # 处理每个用户
-    for username in users:
+
+    for username, folder_name in users:
         try:
-            process_user(session, username)
+            process_user(session, username, folder_name)
         except Exception as e:
             print(f"处理用户 {username} 时发生错误: {e}")
             continue

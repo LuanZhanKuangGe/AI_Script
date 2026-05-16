@@ -11,9 +11,9 @@ except Exception:  # pragma: no cover - tqdm may not exist in env
     tqdm = None
 
 
-def iter_posts(target: str, mode: str = "full", base_path: Path = None) -> Iterable[dict]:
+def iter_posts(target: str, mode: str = "full", base_path: Path = None, target_dir: Optional[Path] = None) -> Iterable[dict]:
     if mode == "quick":
-        yield from iter_posts_quick(target, base_path)
+        yield from iter_posts_quick(target, base_path, target_dir)
     else:
         yield from iter_posts_full(target)
 
@@ -44,7 +44,7 @@ def iter_posts_full(target: str) -> Iterable[dict]:
         page += 1
 
 
-def iter_posts_quick(target: str, base_path: Path) -> Iterable[dict]:
+def iter_posts_quick(target: str, base_path: Path, target_dir: Optional[Path] = None) -> Iterable[dict]:
     api_target = target.split('#')[0].strip() if '#' in target else target
     page = 1
     while True:
@@ -67,7 +67,8 @@ def iter_posts_quick(target: str, base_path: Path) -> Iterable[dict]:
         if not data:
             return
 
-        target_dir = base_path / target
+        if target_dir is None:
+            target_dir = base_path / target
         target_dir.mkdir(parents=True, exist_ok=True)
         has_new = False
         for entry in data:
@@ -89,10 +90,11 @@ def iter_posts_quick(target: str, base_path: Path) -> Iterable[dict]:
         page += 1
 
 
-def collect_media(target: str, base_path: Path, mode: str = "full") -> List[Tuple[str, Path]]:
+def collect_media(target: str, base_path: Path, mode: str = "full", target_dir: Optional[Path] = None) -> List[Tuple[str, Path]]:
     url_pairs: List[Tuple[str, Path]] = []
-    target_dir = base_path / target
-    for entry in iter_posts(target, mode, base_path):
+    if target_dir is None:
+        target_dir = base_path / target
+    for entry in iter_posts(target, mode, base_path, target_dir):
         media_list = entry.get("post", {}).get("media") or []
         if not media_list:
             continue
@@ -190,26 +192,69 @@ def download_with_resume(session: requests.Session, url: str, file_path: Path, o
     overall_bar.update(1)
 
 
-from all_path import PORN_WEB_XXXFOLLOW as BASE_PATH
+from all_path import PORN_ONLYFANS as BASE_PATH
 
-session = requests.Session()
 
-download_mode = "quick"
-if len(sys.argv) > 1:
-    if sys.argv[1] in ("full", "quick"):
-        download_mode = sys.argv[1]
+def process_user(session: requests.Session, username: str, folder_name: str, mode: str) -> None:
+    print(f"\n{'=' * 60}")
+    print(f"处理用户: {username} (模式: {mode})")
+    print(f"{'=' * 60}")
 
-folders = sorted([f for f in BASE_PATH.iterdir() if f.is_dir()], key=lambda x: x.stat().st_mtime, reverse=True)
-for folder in folders:
-    target_name = folder.name
-    print(f"开始处理: {target_name} (模式: {download_mode})")
-    media_tasks = collect_media(target_name, BASE_PATH, download_mode)
+    user_dir = BASE_PATH / folder_name
+    user_dir.mkdir(parents=True, exist_ok=True)
+
+    media_tasks = collect_media(username, BASE_PATH, mode, target_dir=user_dir)
+
     total_files = len(media_tasks)
     if not total_files:
-        print(f"[{target_name}] 无可下载媒体")
-        continue
+        print(f"[{username}] 无可下载媒体")
+        return
 
-    overall = _progress_bar(total_files, desc=f"{target_name} 总进度", unit="file")
+    overall = _progress_bar(total_files, desc=f"{username} 总进度", unit="file")
     for media_url, media_path in media_tasks:
         download_with_resume(session, media_url, media_path, overall)
     overall.close()
+
+    print(f"用户 {username} 处理完成")
+
+
+def main():
+    print(f"BASE_PATH: {BASE_PATH}")
+
+    if not BASE_PATH.exists():
+        print(f"BASE_PATH 不存在: {BASE_PATH}")
+        return
+
+    users = []
+    for f in BASE_PATH.iterdir():
+        if f.is_dir() and f.name.endswith('@xxxfollow'):
+            folder_name = f.name
+            username = folder_name[:-len('@xxxfollow')]
+            users.append((username, folder_name))
+
+    if not users:
+        print("BASE_PATH 下没有找到 @xxxfollow 子文件夹")
+        return
+
+    print(f"找到 {len(users)} 个 @xxxfollow 用户: {', '.join(u[0] for u in users)}")
+
+    download_mode = "quick"
+    if len(sys.argv) > 1 and sys.argv[1] in ("full", "quick"):
+        download_mode = sys.argv[1]
+
+    session = requests.Session()
+
+    for username, folder_name in users:
+        try:
+            process_user(session, username, folder_name, download_mode)
+        except Exception as e:
+            print(f"处理用户 {username} 时发生错误: {e}")
+            continue
+
+    print(f"\n{'=' * 60}")
+    print("所有用户处理完成！")
+    print(f"{'=' * 60}")
+
+
+if __name__ == "__main__":
+    main()
