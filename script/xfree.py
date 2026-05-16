@@ -13,7 +13,7 @@ except ImportError:
     HAS_LXML = False
     print("警告: 未安装 lxml，将使用正则表达式解析 HTML")
 
-from all_path import PORN_WEB_XFREE as BASE_PATH
+from all_path import PORN_ONLYFANS as BASE_PATH
 
 BASE_PATH.mkdir(parents=True, exist_ok=True)
 
@@ -369,13 +369,17 @@ def main():
         print(f"BASE_PATH 不存在: {BASE_PATH}")
         return
 
-    actors = [f.name for f in BASE_PATH.iterdir() if f.is_dir()]
+    actors = []
+    for f in BASE_PATH.iterdir():
+        if f.is_dir() and f.name.endswith('@xfree'):
+            actor_name = f.name[:-len('@xfree')]
+            actors.append(actor_name)
 
     if not actors:
-        print(f"BASE_PATH 下没有找到子文件夹")
+        print(f"BASE_PATH 下没有找到 @xfree 子文件夹")
         return
 
-    print(f"找到 {len(actors)} 个演员: {', '.join(actors)}")
+    print(f"找到 {len(actors)} 个 @xfree 演员: {', '.join(actors)}")
 
     session = cloudscraper.create_scraper()
     session.headers.update(HEADERS)
