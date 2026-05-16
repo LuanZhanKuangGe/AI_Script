@@ -110,42 +110,38 @@ def collect_media(target: str, base_path: Path, mode: str = "full", target_dir: 
 
 
 
-def download_file(session: requests.Session, url: str, filepath: Path, max_retries: int = 3) -> bool:
+def download_file(session: requests.Session, url: str, filepath: Path) -> bool:
     if filepath.exists():
         return True
     tmp = filepath.with_suffix(filepath.suffix + '.tmp')
     if tmp.exists():
         tmp.unlink()
 
-    for attempt in range(1, max_retries + 1):
-        try:
-            resp = session.get(url, stream=True, timeout=60)
-            resp.raise_for_status()
-            total = int(resp.headers.get('Content-Length', 0))
-            filepath.parent.mkdir(parents=True, exist_ok=True)
-            downloaded = 0
-            with open(tmp, 'wb') as f:
-                with tqdm(total=total, unit='B', unit_scale=True, desc=filepath.name, leave=False) as pbar:
-                    for chunk in resp.iter_content(8192):
-                        if chunk:
-                            f.write(chunk)
-                            downloaded += len(chunk)
-                            pbar.update(len(chunk))
-            if total > 0 and downloaded != total:
-                print(f"    下载不完整: {downloaded}/{total}")
-                tmp.unlink()
-                if attempt == max_retries:
-                    return False
-                continue
-            tmp.rename(filepath)
-            print(f"    ✓ 下载完成: {filepath.name}")
-            return True
-        except Exception as e:
-            print(f"    下载失败({attempt}/{max_retries}): {filepath.name} - {e}")
-            if tmp.exists():
-                tmp.unlink()
-            if attempt == max_retries:
-                return False
+    try:
+        resp = session.get(url, stream=True, timeout=60)
+        resp.raise_for_status()
+        total = int(resp.headers.get('Content-Length', 0))
+        filepath.parent.mkdir(parents=True, exist_ok=True)
+        downloaded = 0
+        with open(tmp, 'wb') as f:
+            with tqdm(total=total, unit='B', unit_scale=True, desc=filepath.name, leave=False) as pbar:
+                for chunk in resp.iter_content(8192):
+                    if chunk:
+                        f.write(chunk)
+                        downloaded += len(chunk)
+                        pbar.update(len(chunk))
+        if total > 0 and downloaded != total:
+            print(f"    下载不完整: {downloaded}/{total}")
+            tmp.unlink()
+            return False
+        tmp.rename(filepath)
+        print(f"    ✓ 下载完成: {filepath.name}")
+        return True
+    except Exception as e:
+        print(f"    下载失败: {filepath.name} - {e}")
+        if tmp.exists():
+            tmp.unlink()
+        return False
 
 
 from all_path import PORN_ONLYFANS as BASE_PATH
