@@ -125,11 +125,12 @@ def download_m3u8_video(session: requests.Session, m3u8_url: str, output_path: P
 
         output_path.parent.mkdir(parents=True, exist_ok=True)
         try:
-            with open(tmp, 'wb') as f:
+            with open(tmp, 'wb') as f, tqdm(total=len(segments), unit='seg', desc=output_path.name, leave=False) as pbar:
                 for seg_url in segments:
                     seg_resp = session.get(seg_url, headers=dl_headers, timeout=60)
                     seg_resp.raise_for_status()
                     f.write(seg_resp.content)
+                    pbar.update(1)
             tmp.rename(output_path)
             print(f"    ✓ 下载完成: {output_path.name}")
             return True
