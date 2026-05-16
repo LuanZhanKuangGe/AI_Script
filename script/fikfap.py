@@ -1,19 +1,18 @@
-import subprocess
+import re
+import sys
+import urllib.parse
 from pathlib import Path
 from typing import List, Optional, Dict
 
 import requests
+from tqdm import tqdm
 from all_path import PORN_ONLYFANS as BASE_PATH
 
-# 确保 BASE_PATH 存在
 BASE_PATH.mkdir(parents=True, exist_ok=True)
 
-# API 基础配置
 API_BASE = "https://api.fikfap.com"
 POSTS_PATH_TEMPLATE = "/profile/username/{username}/posts"
 
-# 抓包得到的关键头信息（可按需修改）
-# 注意：authorization-anonymous 和 cookie（cf_clearance）会过期，失效后需要重新抓包替换
 AUTHORIZATION_ANONYMOUS = "8231027f-abbf-44bf-9cc4-87acd6b445e1"
 FIKFAP_COOKIE = (
     "cf_clearance=iPjESyBlsi2ze.aLdBwwWal9yOcDCIjC9AIsikMZf78-1737809279-1.2.1.1-"
@@ -40,104 +39,111 @@ BASE_API_HEADERS = {
 
 
 def build_api_headers(username: str) -> Dict[str, str]:
-    """根据抓包结果构造尽量一致的请求头"""
     headers = BASE_API_HEADERS.copy()
     headers["origin"] = "https://fikfap.com"
     headers["referer"] = f"https://fikfap.com/user/{username}"
-
     if AUTHORIZATION_ANONYMOUS:
         headers["authorization-anonymous"] = AUTHORIZATION_ANONYMOUS
     if FIKFAP_COOKIE:
         headers["cookie"] = FIKFAP_COOKIE
-
     return headers
 
 
 def fetch_posts(session: requests.Session, username: str, after_id: Optional[int] = None,
                 amount: int = 21) -> List[Dict]:
-    """获取指定用户的一页帖子列表
-
-    对应接口：
-    - 第一页: https://api.fikfap.com/profile/username/{username}/posts?amount=21
-    - 后续页: https://api.fikfap.com/profile/username/{username}/posts?amount=21&afterId={lastPostId}
-    """
     params = {"amount": amount}
     if after_id is not None:
         params["afterId"] = after_id
-
     url = f"{API_BASE}{POSTS_PATH_TEMPLATE.format(username=username)}"
-
     try:
         resp = session.get(url, headers=build_api_headers(username), params=params, timeout=30)
         resp.raise_for_status()
         data = resp.json()
-
         if not isinstance(data, list):
             print(f"  警告: 返回数据不是列表，实际类型: {type(data)}")
             return []
-
         return data
     except Exception as e:
         print(f"  获取用户 {username} 帖子失败: {e}")
         return []
 
 
-def download_m3u8_with_headers(m3u8_url: str, output_name: str = "video.mp4") -> bool:
-    """使用固定抓包 Header 通过 ffmpeg 下载 m3u8"""
-    # 构建与抓包一致的 Header 列表
-    headers_list = [
-        "authority: api.fikfap.com",
-        "accept: */*",
-        "authorization-anonymous: 8231027f-abbf-44bf-9cc4-87acd6b445e1",
-        "isloggedin: false",
-        "ispwa: false",
-        "origin: https://fikfap.com",
-        "referer: https://fikfap.com/user/fallenemoangel",
-        "user-agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36 Edg/145.0.0.0",
-    ]
+def download_m3u8_video(session: requests.Session, m3u8_url: str, output_path: Path, referer: str,
+                        max_retries: int = 3) -> bool:
+    if output_path.exists():
+        return True
+    tmp = output_path.with_suffix(output_path.suffix + '.tmp')
+    if tmp.exists():
+        tmp.unlink()
 
-    # 转换为 FFmpeg 可识别的格式，必须以 \r\n 结尾
-    headers_str = "\r\n".join(headers_list) + "\r\n"
+    dl_headers = {
+        'User-Agent': BASE_API_HEADERS['user-agent'],
+        'Referer': referer,
+        'Origin': 'https://fikfap.com',
+    }
 
-    print("🚀 启动 FFmpeg 下载...")
+    for attempt in range(1, max_retries + 1):
+        try:
+            resp = session.get(m3u8_url, headers=dl_headers, timeout=30)
+            resp.raise_for_status()
+            playlist = resp.text
+        except Exception as e:
+            print(f"    下载 m3u8 playlist 失败({attempt}/{max_retries}): {e}")
+            if attempt == max_retries:
+                return False
+            continue
 
-    command = [
-        "ffmpeg",
-        "-hide_banner",          # 不显示冗长的版权和配置信息
-        "-loglevel",
-        "error",                 # 只显示错误（不显示 info/debug 日志）
-        "-stats",                # 显示实时进度
-        "-headers",
-        headers_str,
-        "-i",
-        m3u8_url,
-        "-c",
-        "copy",
-        "-bsf:a",
-        "aac_adtstoasc",
-        "-y",
-        output_name,
-    ]
+        base_url = m3u8_url.rsplit('/', 1)[0] + '/'
 
-    try:
-        process = subprocess.run(command, check=True)
-        if process.returncode == 0:
-            print(f"✅ 下载成功！文件保存为: {output_name}")
+        # Master playlist → 选最高码率
+        if '#EXT-X-STREAM-INF' in playlist:
+            best_url = None
+            best_bw = -1
+            for line in playlist.splitlines():
+                if line.startswith('#EXT-X-STREAM-INF:'):
+                    m = re.search(r'BANDWIDTH=(\d+)', line)
+                    bw = int(m.group(1)) if m else 0
+                elif line.strip() and not line.startswith('#'):
+                    if bw > best_bw:
+                        seg = line.strip()
+                        best_bw = bw
+                        best_url = seg if seg.startswith('http') else urllib.parse.urljoin(base_url, seg)
+            if best_url:
+                return download_m3u8_video(session, best_url, output_path, referer, max_retries)
+            return False
+
+        segments = []
+        for line in playlist.splitlines():
+            line = line.strip()
+            if line and not line.startswith('#'):
+                seg_url = line if line.startswith('http') else urllib.parse.urljoin(base_url, line)
+                segments.append(seg_url)
+
+        if not segments:
+            print(f"    未找到视频片段")
+            return False
+
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            with open(tmp, 'wb') as f:
+                for seg_url in segments:
+                    seg_resp = session.get(seg_url, headers=dl_headers, timeout=60)
+                    seg_resp.raise_for_status()
+                    f.write(seg_resp.content)
+            tmp.rename(output_path)
+            print(f"    ✓ 下载完成: {output_path.name}")
             return True
-        return False
-    except subprocess.CalledProcessError as e:
-        print(f"❌ FFmpeg 执行失败。错误码: {e.returncode}")
-        print("提示：如果依然报 403，请检查 m3u8 URL 中的 token 或 authorization-anonymous 是否已过期。")
-        return False
-    except Exception as e:
-        print(f"发生异常: {e}")
-        return False
+        except Exception as e:
+            print(f"    下载片段失败({attempt}/{max_retries}): {e}")
+            if tmp.exists():
+                tmp.unlink()
+            if attempt == max_retries:
+                return False
 
 
-def process_user(session: requests.Session, username: str, folder_name: str) -> None:
-    """处理单个用户：分页获取所有帖子，并为每个 postId 下载对应 mp4"""
+def process_user(session: requests.Session, username: str, folder_name: str, mode: str = "quick") -> None:
     print(f"\n{'=' * 60}")
-    print(f"处理用户: {username}")
+    print(f"处理用户: {username} (模式: {mode})")
     print(f"{'=' * 60}")
 
     user_dir = BASE_PATH / folder_name
@@ -145,10 +151,9 @@ def process_user(session: requests.Session, username: str, folder_name: str) -> 
 
     total_posts = 0
     total_downloaded = 0
-    total_skipped = 0
     total_failed = 0
-
     last_post_id: Optional[int] = None
+    referer = f"https://fikfap.com/user/{username}"
 
     while True:
         print(f"\n获取用户 {username} 帖子，afterId={last_post_id} ...")
@@ -161,6 +166,8 @@ def process_user(session: requests.Session, username: str, folder_name: str) -> 
         print(f"  本页帖子数: {len(posts)}")
         total_posts += len(posts)
 
+        page_new = 0
+        page_existing = 0
         for post in posts:
             post_id = post.get("postId")
             video_url = post.get("videoStreamUrl")
@@ -171,27 +178,31 @@ def process_user(session: requests.Session, username: str, folder_name: str) -> 
             mp4_path = user_dir / f"{post_id}.mp4"
 
             if mp4_path.exists():
-                total_skipped += 1
+                page_existing += 1
                 last_post_id = post_id
                 continue
 
+            page_new += 1
             print(f"  处理 postId={post_id}")
-            if download_m3u8_with_headers(video_url, str(mp4_path)):
+            if download_m3u8_video(session, video_url, mp4_path, referer):
                 total_downloaded += 1
             else:
                 total_failed += 1
 
-            # 记录最后一个处理过的 postId，用于分页
             last_post_id = post_id
 
-        # 如果本页最后一个 post 没有 postId，则无法继续翻页，直接退出
         if last_post_id is None:
+            break
+
+        print(f"  本页: 新 {page_new}, 已存在 {page_existing}")
+
+        if mode == "quick" and page_new == 0 and page_existing > 0:
+            print(f"  本页全部已存在，停止翻页")
             break
 
     print(f"\n用户 {username} 处理完成:")
     print(f"  总帖子数(请求到的): {total_posts}")
     print(f"  下载成功: {total_downloaded}")
-    print(f"  已存在(跳过): {total_skipped}")
     print(f"  下载失败: {total_failed}")
 
 
@@ -215,11 +226,13 @@ def main():
 
     print(f"找到 {len(users)} 个 @fikfap 用户: {', '.join(u[0] for u in users)}")
 
+    download_mode = sys.argv[1] if len(sys.argv) > 1 and sys.argv[1] in ("full", "quick") else "quick"
+
     session = requests.Session()
 
     for username, folder_name in users:
         try:
-            process_user(session, username, folder_name)
+            process_user(session, username, folder_name, download_mode)
         except Exception as e:
             print(f"处理用户 {username} 时发生错误: {e}")
             continue

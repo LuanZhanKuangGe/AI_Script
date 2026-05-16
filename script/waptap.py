@@ -1,5 +1,6 @@
 import re
 import json
+import sys
 import requests
 from pathlib import Path
 from typing import Optional, Dict, List
@@ -167,130 +168,109 @@ def download_file(session: requests.Session, url: str, filepath: Path, referer: 
         return False
 
 
-def process_user(session: requests.Session, username: str, folder_name: str) -> None:
-    """处理单个用户的所有媒体
-     
-    分为两个阶段：
-    1. 获取用户所有视频信息
-    2. 统一批量下载所有视频
-    """
+def process_user(session: requests.Session, username: str, folder_name: str, mode: str = "quick") -> None:
     print(f"\n{'='*60}")
-    print(f"处理用户: {username}")
+    print(f"处理用户: {username} (模式: {mode})")
     print(f"{'='*60}")
-    
-    # 获取用户 ID
+
     user_id = get_user_id_from_html(session, username)
     if not user_id:
         print(f"  无法获取用户 ID，跳过用户: {username}")
         return
-    
-    # 创建用户目录
+
     user_dir = BASE_PATH / folder_name
     user_dir.mkdir(parents=True, exist_ok=True)
-    
-    # ========== 第一阶段：获取所有视频信息 ==========
-    print(f"\n第一阶段：获取所有视频信息...")
-    all_videos = []
+
+    print(f"\n获取视频信息...")
+    pending: List[Dict] = []
     page = 1
-    
+    total_fetched = 0
+    referer = f"https://waptap.com/{username}"
+
     while True:
         print(f"  获取第 {page} 页数据...", end=' ')
         data = fetch_media_page(session, user_id, page)
-        
+
         if not data or data.get('code') != 200:
             print(f"完成（共 {page - 1} 页）")
             break
-        
+
         items = data.get('data', {}).get('items', [])
         if not items:
             print(f"完成（共 {page - 1} 页）")
             break
-        
-        # 过滤并收集视频信息
+
+        page_new = 0
+        page_existing = 0
         for item in items:
-            # 只处理 is_adult 为 true 的项
             if not item.get('is_adult', False):
+                page_existing += 1
                 continue
-            
-            # 获取文件 URL
+
             file_url = item.get('file')
             if not file_url:
                 continue
-            
-            # 生成文件名（使用 _id 或 hash）
+
             file_id = item.get('_id', '')
             file_hash = item.get('hash', '')
-            
-            # 从 URL 中提取文件扩展名（去除查询参数）
-            parsed_url = urlparse(file_url)
-            file_extension = Path(parsed_url.path).suffix or '.mp4'
-            
+            parsed = urlparse(file_url)
+            ext = Path(parsed.path).suffix or '.mp4'
+
             if file_id:
-                filename = f"{file_id}{file_extension}"
+                filename = f"{file_id}{ext}"
             elif file_hash:
-                filename = f"{file_hash}{file_extension}"
+                filename = f"{file_hash}{ext}"
             else:
-                # 从 URL 路径中提取文件名
-                filename = Path(parsed_url.path).name
+                filename = Path(parsed.path).name
                 if not filename:
-                    # 如果还是提取不到，使用 _id 或 hash 作为备用
-                    filename = f"{file_id or file_hash or 'unknown'}{file_extension}"
-            
+                    filename = f"{file_id or file_hash or 'unknown'}{ext}"
+
             filepath = user_dir / filename
-            
-            # 保存视频信息（包含文件路径、URL等）
-            all_videos.append({
-                'file_url': file_url,
-                'filepath': filepath,
-                'filename': filename,
-            })
-        
-        print(f"获取到 {len(items)} 个媒体项")
+            total_fetched += 1
+            if filepath.exists():
+                page_existing += 1
+            else:
+                page_new += 1
+                pending.append({'file_url': file_url, 'filepath': filepath})
+
+        print(f"{len(items)} 个（新 {page_new}，已存在 {page_existing}）")
+
+        if mode == "quick" and page_new == 0 and page_existing > 0:
+            print(f"  本页全部已存在，停止翻页")
+            break
+
         page += 1
-    
-    print(f"\n  共获取到 {len(all_videos)} 个视频")
-    
-    # ========== 第二阶段：统一批量下载 ==========
-    print(f"\n第二阶段：开始批量下载...")
-    total_downloaded = 0
-    total_skipped = 0
-    total_failed = 0
-    
-    referer = f"https://waptap.com/{username}"
-    
-    for idx, video_info in enumerate(all_videos, 1):
-        file_url = video_info['file_url']
-        filepath = video_info['filepath']
-        filename = video_info['filename']
-        
-        # 检查文件是否已存在
-        if filepath.exists():
-            total_skipped += 1
-            continue
-        
-        print(f"  [{idx}/{len(all_videos)}] {filename}")
-        if download_file(session, file_url, filepath, referer):
-            total_downloaded += 1
+
+    print(f"\n  共获取到 {total_fetched} 个视频，待下载 {len(pending)} 个")
+
+    if not pending:
+        print("  无新视频需要下载")
+        return
+
+    print(f"\n开始下载 {len(pending)} 个新视频...")
+    downloaded = 0
+    failed = 0
+
+    for idx, info in enumerate(pending, 1):
+        print(f"  [{idx}/{len(pending)}] {info['filepath'].name}")
+        if download_file(session, info['file_url'], info['filepath'], referer):
+            downloaded += 1
         else:
-            total_failed += 1
-    
-    # 输出统计信息
+            failed += 1
+
     print(f"\n用户 {username} 处理完成:")
-    print(f"  总视频数: {len(all_videos)} 个")
-    print(f"  下载成功: {total_downloaded} 个")
-    print(f"  已跳过: {total_skipped} 个")
-    print(f"  下载失败: {total_failed} 个")
+    print(f"  总视频数(接口返回): {total_fetched}")
+    print(f"  下载成功: {downloaded}")
+    print(f"  下载失败: {failed}")
 
 
 def main():
-    """主函数"""
     print(f"BASE_PATH: {BASE_PATH}")
-    
-    # 获取所有子文件夹名作为用户名
+
     if not BASE_PATH.exists():
         print(f"BASE_PATH 不存在: {BASE_PATH}")
         return
-    
+
     users = []
     for f in BASE_PATH.iterdir():
         if f.is_dir() and f.name.endswith('@waptap'):
@@ -304,15 +284,17 @@ def main():
 
     print(f"找到 {len(users)} 个 @waptap 用户: {', '.join(u[0] for u in users)}")
 
+    download_mode = sys.argv[1] if len(sys.argv) > 1 and sys.argv[1] in ("full", "quick") else "quick"
+
     session = requests.Session()
 
     for username, folder_name in users:
         try:
-            process_user(session, username, folder_name)
+            process_user(session, username, folder_name, download_mode)
         except Exception as e:
             print(f"处理用户 {username} 时发生错误: {e}")
             continue
-    
+
     print(f"\n{'='*60}")
     print("所有用户处理完成！")
     print(f"{'='*60}")

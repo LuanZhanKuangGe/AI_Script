@@ -1,4 +1,5 @@
 import re
+import sys
 from pathlib import Path
 from typing import Optional, Dict, List
 
@@ -159,10 +160,10 @@ def download_file(session: requests.Session, url: str, filepath: Path, referer: 
         return False
 
 
-def process_user(session: requests.Session, username: str, folder_name: str) -> None:
+def process_user(session: requests.Session, username: str, folder_name: str, mode: str = "quick") -> None:
     """处理单个用户：先获取全部视频信息，再统一下载未存在的文件"""
     print(f"\n{'=' * 60}")
-    print(f"处理用户: {username}")
+    print(f"处理用户: {username} (模式: {mode})")
     print(f"{'=' * 60}")
 
     user_dir = BASE_PATH / folder_name
@@ -218,8 +219,8 @@ def process_user(session: requests.Session, username: str, folder_name: str) -> 
 
         print(f"  本页 {len(videos)} 个（新 {page_new}，已存在 {page_existing}）")
 
-        # 如果本页所有视频都已存在，后续页面只会更旧，直接停止
-        if page_new == 0 and page_existing > 0:
+        # 本页全部已存在且为 quick 模式 → 停止翻页
+        if mode == "quick" and page_new == 0 and page_existing > 0:
             print(f"  本页全部已存在，停止翻页")
             break
 
@@ -274,11 +275,13 @@ def main():
 
     print(f"找到 {len(users)} 个 @tikporn 用户: {', '.join(u[0] for u in users)}")
 
+    download_mode = sys.argv[1] if len(sys.argv) > 1 and sys.argv[1] in ("full", "quick") else "quick"
+
     session = requests.Session()
 
     for username, folder_name in users:
         try:
-            process_user(session, username, folder_name)
+            process_user(session, username, folder_name, download_mode)
         except Exception as e:
             print(f"处理用户 {username} 时发生错误: {e}")
             continue

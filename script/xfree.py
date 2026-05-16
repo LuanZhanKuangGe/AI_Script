@@ -1,5 +1,6 @@
 import re
 import json
+import sys
 import requests
 from pathlib import Path
 from typing import Optional, Dict, List
@@ -164,7 +165,8 @@ def get_user_id_from_html(session: requests.Session, actor_name: str) -> Optiona
         return None
 
 
-def fetch_videos(session: requests.Session, user_id: int, actor_name: str = "", limit: int = 20) -> List[Dict]:
+def fetch_videos(session: requests.Session, user_id: int, actor_name: str = "",
+                 limit: int = 20, actor_dir: Optional[Path] = None, mode: str = "quick") -> List[Dict]:
     all_videos = []
     offset = 0
     api_headers = {**API_HEADERS}
@@ -190,17 +192,31 @@ def fetch_videos(session: requests.Session, user_id: int, actor_name: str = "", 
         if not items:
             break
 
+        page_new = 0
+        page_existing = 0
         for item in items:
             video_id = item.get('id')
             video_name = item.get('title', '')
-            if video_id:
-                all_videos.append({
-                    'video_id': video_id,
-                    'video_name': video_name,
-                })
+            if not video_id:
+                continue
+            all_videos.append({
+                'video_id': video_id,
+                'video_name': video_name,
+            })
+            if actor_dir:
+                expected = actor_dir / f"[{video_id}] {validate_title(video_name)}.mp4"
+                if expected.exists():
+                    page_existing += 1
+                else:
+                    page_new += 1
 
-        print(f"    获取 {len(items)} 个视频 (offset={offset})")
+        print(f"    获取 {len(items)} 个视频 (offset={offset}, 新 {page_new}, 已存在 {page_existing})")
         offset += limit
+
+        if mode == "quick" and page_new == 0 and page_existing > 0:
+            print(f"    本页全部已存在，停止翻页")
+            break
+
         if len(items) < limit:
             break
 
@@ -307,9 +323,9 @@ def warmup_session(session: requests.Session) -> None:
         pass
 
 
-def process_actor(session: requests.Session, actor_name: str, folder_name: str) -> None:
+def process_actor(session: requests.Session, actor_name: str, folder_name: str, mode: str = "quick") -> None:
     print(f"\n{'='*60}")
-    print(f"处理演员: {actor_name}")
+    print(f"处理演员: {actor_name} (模式: {mode})")
     print(f"{'='*60}")
 
     user_id = get_user_id_from_html(session, actor_name)
@@ -323,12 +339,14 @@ def process_actor(session: requests.Session, actor_name: str, folder_name: str) 
     actor_dir.mkdir(parents=True, exist_ok=True)
 
     print(f"\n第一阶段：获取所有视频信息...")
-    videos = fetch_videos(session, user_id, actor_name)
+    videos = fetch_videos(session, user_id, actor_name, actor_dir=actor_dir, mode=mode)
     print(f"  共获取到 {len(videos)} 个视频")
+
+    if not videos:
+        return
 
     print(f"\n第二阶段：开始批量下载...")
     total_downloaded = 0
-    total_skipped = 0
     total_failed = 0
 
     referer = f"https://www.xfree.com/{actor_name}"
@@ -340,7 +358,7 @@ def process_actor(session: requests.Session, actor_name: str, folder_name: str) 
         filepath = actor_dir / filename
 
         if filepath.exists():
-            total_skipped += 1
+            total_downloaded += 1
             continue
 
         print(f"  [{idx}/{len(videos)}] {filename}")
@@ -358,7 +376,6 @@ def process_actor(session: requests.Session, actor_name: str, folder_name: str) 
     print(f"\n演员 {actor_name} 处理完成:")
     print(f"  总视频数: {len(videos)} 个")
     print(f"  下载成功: {total_downloaded} 个")
-    print(f"  已跳过: {total_skipped} 个")
     print(f"  下载失败: {total_failed} 个")
 
 
@@ -382,13 +399,15 @@ def main():
 
     print(f"找到 {len(actors)} 个 @xfree 演员: {', '.join(a[0] for a in actors)}")
 
+    download_mode = sys.argv[1] if len(sys.argv) > 1 and sys.argv[1] in ("full", "quick") else "quick"
+
     session = cloudscraper.create_scraper()
     session.headers.update(HEADERS)
     warmup_session(session)
 
     for actor_name, folder_name in actors:
         try:
-            process_actor(session, actor_name, folder_name)
+            process_actor(session, actor_name, folder_name, download_mode)
         except Exception as e:
             print(f"处理演员 {actor_name} 时发生错误: {e}")
             continue

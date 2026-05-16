@@ -109,87 +109,43 @@ def collect_media(target: str, base_path: Path, mode: str = "full", target_dir: 
     return url_pairs
 
 
-def _progress_bar(total: Optional[int], desc: str, unit: str) -> "ProgressProtocol":
-    if tqdm:
-        return tqdm(total=total, desc=desc, unit=unit, unit_scale=True, unit_divisor=1024, leave=False)
-    return SimpleBar(total=total, desc=desc, unit=unit)
 
-
-class ProgressProtocol:
-    def update(self, value: int) -> None: ...
-    def close(self) -> None: ...
-
-
-class SimpleBar:
-    def __init__(self, total: Optional[int], desc: str, unit: str) -> None:
-        self.total = total
-        self.desc = desc
-        self.unit = unit
-        self.current = 0
-
-    def update(self, value: int) -> None:
-        self.current += value
-        if self.total:
-            pct = (self.current / self.total) * 100
-            sys.stdout.write(f"\r{self.desc}: {self.current}/{self.total} {self.unit} ({pct:.1f}%)")
-        else:
-            sys.stdout.write(f"\r{self.desc}: {self.current} {self.unit}")
-        sys.stdout.flush()
-
-    def close(self) -> None:
-        sys.stdout.write("\n")
-        sys.stdout.flush()
-
-
-def download_with_resume(session: requests.Session, url: str, file_path: Path, overall_bar: ProgressProtocol,
-                         max_retries: int = 3) -> None:
-    file_path.parent.mkdir(parents=True, exist_ok=True)
-    tmp_path = file_path.with_name(file_path.name + ".part")
-
-    if file_path.exists():
-        # print(f"已存在: {file_path}")
-        overall_bar.update(1)
-        return
+def download_file(session: requests.Session, url: str, filepath: Path, max_retries: int = 3) -> bool:
+    if filepath.exists():
+        return True
+    tmp = filepath.with_suffix(filepath.suffix + '.tmp')
+    if tmp.exists():
+        tmp.unlink()
 
     for attempt in range(1, max_retries + 1):
-        resume_pos = tmp_path.stat().st_size if tmp_path.exists() else 0
-        headers = {"Range": f"bytes={resume_pos}-"} if resume_pos else None
         try:
-            with session.get(url, stream=True, timeout=30, headers=headers) as resp:
-                if resp.status_code == 416:
-                    tmp_path.rename(file_path)
-                    print(f"完成: {file_path}")
-                    overall_bar.update(1)
-                    return
-                resp.raise_for_status()
-                total = resp.headers.get("Content-Length")
-                if total is not None:
-                    total_size = int(total) + resume_pos
-                else:
-                    total_size = None
-                bar = _progress_bar(total_size, desc=file_path.name, unit="B")
-                write_mode = "ab" if resume_pos else "wb"
-                written = resume_pos
-                with open(tmp_path, write_mode) as fh:
-                    if resume_pos:
-                        bar.update(resume_pos)
-                    for chunk in resp.iter_content(chunk_size=1024 * 256):
-                        if not chunk:
-                            continue
-                        fh.write(chunk)
-                        written += len(chunk)
-                        bar.update(len(chunk))
-                bar.close()
-                tmp_path.rename(file_path)
-                print(f"完成: {file_path}")
-                overall_bar.update(1)
-                return
-        except Exception as exc:
-            print(f"下载失败({attempt}/{max_retries}): {url} - {exc}")
+            resp = session.get(url, stream=True, timeout=60)
+            resp.raise_for_status()
+            total = int(resp.headers.get('Content-Length', 0))
+            filepath.parent.mkdir(parents=True, exist_ok=True)
+            downloaded = 0
+            with open(tmp, 'wb') as f:
+                with tqdm(total=total, unit='B', unit_scale=True, desc=filepath.name, leave=False) as pbar:
+                    for chunk in resp.iter_content(8192):
+                        if chunk:
+                            f.write(chunk)
+                            downloaded += len(chunk)
+                            pbar.update(len(chunk))
+            if total > 0 and downloaded != total:
+                print(f"    下载不完整: {downloaded}/{total}")
+                tmp.unlink()
+                if attempt == max_retries:
+                    return False
+                continue
+            tmp.rename(filepath)
+            print(f"    ✓ 下载完成: {filepath.name}")
+            return True
+        except Exception as e:
+            print(f"    下载失败({attempt}/{max_retries}): {filepath.name} - {e}")
+            if tmp.exists():
+                tmp.unlink()
             if attempt == max_retries:
-                if tmp_path.exists():
-                    tmp_path.unlink(missing_ok=True)
-    overall_bar.update(1)
+                return False
 
 
 from all_path import PORN_ONLYFANS as BASE_PATH
@@ -205,17 +161,21 @@ def process_user(session: requests.Session, username: str, folder_name: str, mod
 
     media_tasks = collect_media(username, BASE_PATH, mode, target_dir=user_dir)
 
-    total_files = len(media_tasks)
-    if not total_files:
+    if not media_tasks:
         print(f"[{username}] 无可下载媒体")
         return
 
-    overall = _progress_bar(total_files, desc=f"{username} 总进度", unit="file")
-    for media_url, media_path in media_tasks:
-        download_with_resume(session, media_url, media_path, overall)
-    overall.close()
+    print(f"\n开始下载 {len(media_tasks)} 个新视频...")
+    downloaded = 0
+    failed = 0
+    for idx, (media_url, media_path) in enumerate(media_tasks, 1):
+        print(f"  [{idx}/{len(media_tasks)}] {media_path.name}")
+        if download_file(session, media_url, media_path):
+            downloaded += 1
+        else:
+            failed += 1
 
-    print(f"用户 {username} 处理完成")
+    print(f"用户 {username} 处理完成: 成功 {downloaded}, 失败 {failed}")
 
 
 def main():
