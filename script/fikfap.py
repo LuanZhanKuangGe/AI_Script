@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import List, Optional, Dict
 
 import requests
-from all_path import PORN_WEB_FIKFAP as BASE_PATH
+from all_path import PORN_ONLYFANS as BASE_PATH
 
 # 确保 BASE_PATH 存在
 BASE_PATH.mkdir(parents=True, exist_ok=True)
@@ -134,13 +134,13 @@ def download_m3u8_with_headers(m3u8_url: str, output_name: str = "video.mp4") ->
         return False
 
 
-def process_user(session: requests.Session, username: str) -> None:
+def process_user(session: requests.Session, username: str, folder_name: str) -> None:
     """处理单个用户：分页获取所有帖子，并为每个 postId 下载对应 mp4"""
     print(f"\n{'=' * 60}")
     print(f"处理用户: {username}")
     print(f"{'=' * 60}")
 
-    user_dir = BASE_PATH / username
+    user_dir = BASE_PATH / folder_name
     user_dir.mkdir(parents=True, exist_ok=True)
 
     total_posts = 0
@@ -202,20 +202,24 @@ def main():
         print(f"BASE_PATH 不存在: {BASE_PATH}")
         return
 
-    # 遍历 BASE_PATH 下的全部子文件夹，文件夹名视为用户名
-    users = [f.name for f in BASE_PATH.iterdir() if f.is_dir()]
+    users = []
+    for f in BASE_PATH.iterdir():
+        if f.is_dir() and f.name.endswith('@fikfap'):
+            folder_name = f.name
+            username = folder_name[:-len('@fikfap')]
+            users.append((username, folder_name))
 
     if not users:
-        print("BASE_PATH 下没有找到任何用户文件夹")
+        print("BASE_PATH 下没有找到 @fikfap 子文件夹")
         return
 
-    print(f"找到 {len(users)} 个用户文件夹: {', '.join(users)}")
+    print(f"找到 {len(users)} 个 @fikfap 用户: {', '.join(u[0] for u in users)}")
 
     session = requests.Session()
 
-    for username in users:
+    for username, folder_name in users:
         try:
-            process_user(session, username)
+            process_user(session, username, folder_name)
         except Exception as e:
             print(f"处理用户 {username} 时发生错误: {e}")
             continue
