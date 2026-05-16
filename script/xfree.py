@@ -233,7 +233,13 @@ def get_video_download_url(session: requests.Session, video_id: int, actor_name:
                 src = source.get('src')
                 if src:
                     return src
-        print(f"    页面中未找到 id=feed-video-element 或其 src 为空")
+        out_path = Path(f"debug_video_{video_id}.html")
+        out_path.write_text(html_text, encoding="utf-8")
+        print(f"    页面中未找到 id=feed-video-element，已保存到 {out_path}")
+        lim = 2000
+        print(f"    页面内容预览 ({lim} 字符):")
+        for line in html_text[:lim].splitlines():
+            print(f"    {line}")
     else:
         patterns = [
             r'<[^>]*id="feed-video-element"[^>]*src="([^"]+)"',
@@ -243,7 +249,13 @@ def get_video_download_url(session: requests.Session, video_id: int, actor_name:
             match = re.search(pattern, html_text, re.DOTALL)
             if match:
                 return match.group(1)
-        print(f"    页面中未找到 feed-video-element 的 src 属性")
+        out_path = Path(f"debug_video_{video_id}.html")
+        out_path.write_text(html_text, encoding="utf-8")
+        print(f"    页面中未找到 feed-video-element 的 src 属性，已保存到 {out_path}")
+        lim = 2000
+        print(f"    页面内容预览 ({lim} 字符):")
+        for line in html_text[:lim].splitlines():
+            print(f"    {line}")
 
     return None
 
