@@ -221,42 +221,27 @@ def get_video_download_url(session: requests.Session, video_id: int, actor_name:
 
     html_text = resp.text
 
-    if HAS_LXML:
-        doc = html.fromstring(html_text)
-        video_elem = doc.xpath('//*[@id="feed-video-element"]')
-        if video_elem:
-            src = video_elem[0].get('src')
-            if src:
-                return src
-            source = video_elem[0].find('.//source')
-            if source is not None:
-                src = source.get('src')
-                if src:
-                    return src
-        out_path = Path(f"debug_video_{video_id}.html")
-        out_path.write_text(html_text, encoding="utf-8")
-        print(f"    页面中未找到 id=feed-video-element，已保存到 {out_path}")
-        lim = 2000
-        print(f"    页面内容预览 ({lim} 字符):")
-        for line in html_text[:lim].splitlines():
-            print(f"    {line}")
-    else:
-        patterns = [
-            r'<[^>]*id="feed-video-element"[^>]*src="([^"]+)"',
-            r'<video[^>]*id="feed-video-element"[^>]*>.*?<source[^>]*src="([^"]+)"',
-        ]
-        for pattern in patterns:
-            match = re.search(pattern, html_text, re.DOTALL)
-            if match:
-                return match.group(1)
-        out_path = Path(f"debug_video_{video_id}.html")
-        out_path.write_text(html_text, encoding="utf-8")
-        print(f"    页面中未找到 feed-video-element 的 src 属性，已保存到 {out_path}")
-        lim = 2000
-        print(f"    页面内容预览 ({lim} 字符):")
-        for line in html_text[:lim].splitlines():
-            print(f"    {line}")
+    jsonld_match = re.search(
+        r'<script[^>]*type="application/ld\+json"[^>]*>(.*?)</script>',
+        html_text,
+        re.DOTALL,
+    )
+    if jsonld_match:
+        try:
+            data = json.loads(jsonld_match.group(1))
+            content_url = data.get("contentUrl")
+            if content_url:
+                return content_url
+        except json.JSONDecodeError:
+            pass
 
+    out_path = Path(f"debug_video_{video_id}.html")
+    out_path.write_text(html_text, encoding="utf-8")
+    print(f"    未找到 JSON-LD 中的 contentUrl，已保存到 {out_path}")
+    lim = 2000
+    print(f"    页面内容预览 ({lim} 字符):")
+    for line in html_text[:lim].splitlines():
+        print(f"    {line}")
     return None
 
 
