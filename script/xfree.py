@@ -177,6 +177,11 @@ def fetch_videos(session: requests.Session, user_id: int, actor_name: str = "", 
             resp = session.get(url, headers=api_headers, timeout=30)
             resp.raise_for_status()
             data = resp.json()
+        except requests.exceptions.HTTPError as e:
+            print(f"  获取API数据失败 (offset={offset}): HTTP {e.response.status_code}")
+            if e.response.status_code == 404:
+                print(f"    响应内容: {e.response.text[:500]}")
+            break
         except Exception as e:
             print(f"  获取API数据失败 (offset={offset}): {e}")
             break
@@ -207,8 +212,11 @@ def get_video_download_url(session: requests.Session, video_id: int, actor_name:
     try:
         resp = session.get(url, headers=HEADERS, timeout=30)
         resp.raise_for_status()
+    except requests.exceptions.HTTPError as e:
+        print(f"    视频页面 HTTP {e.response.status_code}: {e}")
+        return None
     except Exception as e:
-        print(f"  获取视频页面失败: {e}")
+        print(f"    获取视频页面失败: {e}")
         return None
 
     html_text = resp.text
@@ -225,6 +233,7 @@ def get_video_download_url(session: requests.Session, video_id: int, actor_name:
                 src = source.get('src')
                 if src:
                     return src
+        print(f"    页面中未找到 id=feed-video-element 或其 src 为空")
     else:
         patterns = [
             r'<[^>]*id="feed-video-element"[^>]*src="([^"]+)"',
@@ -234,6 +243,7 @@ def get_video_download_url(session: requests.Session, video_id: int, actor_name:
             match = re.search(pattern, html_text, re.DOTALL)
             if match:
                 return match.group(1)
+        print(f"    页面中未找到 feed-video-element 的 src 属性")
 
     return None
 
@@ -347,7 +357,6 @@ def process_actor(session: requests.Session, actor_name: str) -> None:
 
         download_url = get_video_download_url(session, video_id, actor_name)
         if not download_url:
-            print(f"    获取下载地址失败")
             total_failed += 1
             continue
 
