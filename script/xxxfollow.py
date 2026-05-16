@@ -26,13 +26,11 @@ def iter_posts_full(target: str) -> Iterable[dict]:
         try:
             resp = requests.get(api_url, timeout=15)
         except Exception as exc:
-            print(f"[{api_target}] 请求第 {page} 页失败: {exc}，5秒后重试...")
-            time.sleep(5)
-            continue
+            print(f"[{api_target}] 请求第 {page} 页失败: {exc}，跳过")
+            return
         if resp.status_code != 200:
-            print(f"[{api_target}] 第 {page} 页返回 {resp.status_code}，5秒后重试...")
-            time.sleep(5)
-            continue
+            print(f"[{api_target}] 第 {page} 页返回 {resp.status_code}，跳过")
+            return
         try:
             data = resp.json()
         except Exception as exc:
@@ -52,13 +50,11 @@ def iter_posts_quick(target: str, base_path: Path, target_dir: Optional[Path] = 
         try:
             resp = requests.get(api_url, timeout=15)
         except Exception as exc:
-            print(f"[{api_target}] 请求第 {page} 页失败: {exc}，5秒后重试...")
-            time.sleep(5)
-            continue
+            print(f"[{api_target}] 请求第 {page} 页失败: {exc}，跳过")
+            return
         if resp.status_code != 200:
-            print(f"[{api_target}] 第 {page} 页返回 {resp.status_code}，5秒后重试...")
-            time.sleep(5)
-            continue
+            print(f"[{api_target}] 第 {page} 页返回 {resp.status_code}，跳过")
+            return
         try:
             data = resp.json()
         except Exception as exc:
