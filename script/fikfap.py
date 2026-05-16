@@ -149,11 +149,10 @@ def process_user(session: requests.Session, username: str, folder_name: str, mod
     user_dir = BASE_PATH / folder_name
     user_dir.mkdir(parents=True, exist_ok=True)
 
-    total_posts = 0
-    total_downloaded = 0
-    total_failed = 0
+    print(f"\n第一阶段：获取所有视频信息...")
+    pending: List[Dict] = []
+    total_fetched = 0
     last_post_id: Optional[int] = None
-    referer = f"https://fikfap.com/user/{username}"
 
     while True:
         print(f"\n获取用户 {username} 帖子，afterId={last_post_id} ...")
@@ -162,9 +161,6 @@ def process_user(session: requests.Session, username: str, folder_name: str, mod
         if not posts:
             print("  没有更多帖子")
             break
-
-        print(f"  本页帖子数: {len(posts)}")
-        total_posts += len(posts)
 
         page_new = 0
         page_existing = 0
@@ -176,32 +172,45 @@ def process_user(session: requests.Session, username: str, folder_name: str, mod
                 continue
 
             mp4_path = user_dir / f"{post_id}.mp4"
+            total_fetched += 1
 
             if mp4_path.exists():
                 page_existing += 1
-                last_post_id = post_id
-                continue
-
-            page_new += 1
-            print(f"  处理 postId={post_id}")
-            if download_m3u8_video(session, video_url, mp4_path, referer):
-                total_downloaded += 1
             else:
-                total_failed += 1
+                page_new += 1
+                pending.append({'post_id': post_id, 'video_url': video_url, 'mp4_path': mp4_path})
 
             last_post_id = post_id
 
+        print(f"  本页 {len(posts)} 个（新 {page_new}，已存在 {page_existing}）")
+
         if last_post_id is None:
             break
-
-        print(f"  本页 {len(posts)} 个（新 {page_new}，已存在 {page_existing}）")
 
         if mode == "quick" and page_new == 0 and page_existing > 0:
             print(f"  本页全部已存在，停止翻页")
             break
 
+    print(f"\n  共获取到 {total_fetched} 个帖子，待下载 {len(pending)} 个")
+
+    if not pending:
+        print("  无新视频需要下载")
+        return
+
+    print(f"\n第二阶段：开始下载 {len(pending)} 个新视频...")
+    total_downloaded = 0
+    total_failed = 0
+    referer = f"https://fikfap.com/user/{username}"
+
+    for idx, info in enumerate(pending, 1):
+        print(f"  [{idx}/{len(pending)}] postId={info['post_id']}")
+        if download_m3u8_video(session, info['video_url'], info['mp4_path'], referer):
+            total_downloaded += 1
+        else:
+            total_failed += 1
+
     print(f"\n用户 {username} 处理完成:")
-    print(f"  总帖子数(请求到的): {total_posts}")
+    print(f"  总帖子数(接口返回): {total_fetched}")
     print(f"  下载成功: {total_downloaded}")
     print(f"  下载失败: {total_failed}")
 
