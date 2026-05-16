@@ -26,6 +26,13 @@ def get_root() -> Path:
     return exe.parent.parent
 
 
+def get_python() -> str:
+    """返回可用的 Python 解释器路径。编译为 exe 后用系统 python.exe"""
+    if getattr(sys, 'frozen', False):
+        return str(Path(sys.base_exec_prefix) / "python.exe")
+    return sys.executable
+
+
 LOG_DIR = get_root() / "script" / "logs"
 LOG_DIR.mkdir(exist_ok=True)
 
@@ -44,7 +51,7 @@ class ScriptRunner:
             lf.write(f"\n--- {self._ts()} START ---\n")
             env = {**os.environ, "PYTHONUNBUFFERED": "1", "PYTHONIOENCODING": "utf-8"}
             self.proc = subprocess.Popen(
-                [sys.executable, str(self.path), self.mode],
+                [get_python(), str(self.path), self.mode],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
                 bufsize=1,
