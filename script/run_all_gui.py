@@ -38,11 +38,13 @@ class ScriptRunner:
                 [sys.executable, str(self.path), self.mode],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
-                bufsize=0,
+                bufsize=1,
+                text=True,
+                encoding='utf-8',
+                errors='replace',
                 env=env,
             )
-            for raw in iter(self.proc.stdout.readline, b""):
-                line = raw.decode("utf-8", errors="replace")
+            for line in iter(self.proc.stdout.readline, ""):
                 lf.write(line)
                 lf.flush()
                 self.queue.put(line)
