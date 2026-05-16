@@ -324,9 +324,9 @@ def warmup_session(session: requests.Session) -> None:
 
 
 def process_actor(session: requests.Session, actor_name: str, folder_name: str, mode: str = "quick") -> None:
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"处理演员: {actor_name} (模式: {mode})")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
 
     user_id = get_user_id_from_html(session, actor_name)
     if not user_id:
@@ -412,9 +412,9 @@ def main():
             print(f"处理演员 {actor_name} 时发生错误: {e}")
             continue
 
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print("所有演员处理完成！")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
 
 
 if __name__ == "__main__":

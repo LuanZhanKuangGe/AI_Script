@@ -169,9 +169,9 @@ def download_file(session: requests.Session, url: str, filepath: Path, referer: 
 
 
 def process_user(session: requests.Session, username: str, folder_name: str, mode: str = "quick") -> None:
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"处理用户: {username} (模式: {mode})")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
 
     user_id = get_user_id_from_html(session, username)
     if not user_id:
@@ -295,9 +295,9 @@ def main():
             print(f"处理用户 {username} 时发生错误: {e}")
             continue
 
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print("所有用户处理完成！")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
 
 
 if __name__ == "__main__":

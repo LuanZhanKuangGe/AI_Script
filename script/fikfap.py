@@ -194,7 +194,7 @@ def process_user(session: requests.Session, username: str, folder_name: str, mod
         if last_post_id is None:
             break
 
-        print(f"  本页: 新 {page_new}, 已存在 {page_existing}")
+        print(f"  本页 {len(posts)} 个（新 {page_new}，已存在 {page_existing}）")
 
         if mode == "quick" and page_new == 0 and page_existing > 0:
             print(f"  本页全部已存在，停止翻页")
