@@ -35,6 +35,7 @@ PORN_WEB_ONLYTIK = _make_path(r"D:\Porn-Web\onlytik", "/data/Porn-Web/onlytik")
 PORN_WEB_OGFAP = _make_path(r"D:\Porn-Web\ogfap", "/data/Porn-Web/ogfap")
 PORN_WEB_HOTSCOPE = _make_path(r"D:\Porn-Web\hotscope", "/data/Porn-Web/hotscope")
 PORN_WEB_FIKFAP = _make_path(r"D:\Porn-Web\fikfap", "/data/Porn-Web/fikfap")
+PORN_WEB_XFREE = _make_path(r"D:\Porn-Web\xfree", "/data/Porn-Web/xfree")
 
 # Porn-CN
 PORN_CN_LUOWU = _make_path(r"D:\Hentai-Dance", "/data/Hentai-Dance")
@@ -63,6 +64,7 @@ _ALL_PATHS = {
     "PORN_WEB_OGFAP": PORN_WEB_OGFAP,
     "PORN_WEB_HOTSCOPE": PORN_WEB_HOTSCOPE,
     "PORN_WEB_FIKFAP": PORN_WEB_FIKFAP,
+    "PORN_WEB_XFREE": PORN_WEB_XFREE,
     "PORN_CN_LUOWU": PORN_CN_LUOWU,
     "PORN_CN_SHORT_XIAOPYIXIA1": PORN_CN_SHORT_XIAOPYIXIA1,
     "PORN_CN_SHORT_MISTRALAIAI": PORN_CN_SHORT_MISTRALAIAI,

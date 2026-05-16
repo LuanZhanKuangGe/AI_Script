@@ -4,6 +4,7 @@ import requests
 from pathlib import Path
 from typing import Optional, Dict, List
 from tqdm import tqdm
+import cloudscraper
 
 try:
     from lxml import html
@@ -17,19 +18,33 @@ from all_path import PORN_WEB_XFREE as BASE_PATH
 BASE_PATH.mkdir(parents=True, exist_ok=True)
 
 HEADERS = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36 Edg/138.0.0.0',
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36 Edg/148.0.0.0',
     'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-    'Accept-Language': 'en-US,en;q=0.5',
+    'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6',
     'Accept-Encoding': 'gzip, deflate, br',
     'Connection': 'keep-alive',
     'Upgrade-Insecure-Requests': '1',
+    'Sec-Fetch-Dest': 'document',
+    'Sec-Fetch-Mode': 'navigate',
+    'Sec-Fetch-Site': 'none',
+    'Sec-Fetch-User': '?1',
 }
 
 API_HEADERS = {
-    'User-Agent': HEADERS['User-Agent'],
-    'Accept': 'application/json',
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36 Edg/148.0.0.0',
+    'Accept': 'application/json, text/plain, */*',
+    'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6',
+    'Accept-Encoding': 'gzip, deflate, br, zstd',
+    'apiversion': '1.0',
+    'app-version': 'xf1.39.6',
+    'country': 'US',
+    'language': 'en-US',
     'Referer': 'https://www.xfree.com/',
     'Origin': 'https://www.xfree.com',
+    'Sec-Fetch-Dest': 'empty',
+    'Sec-Fetch-Mode': 'cors',
+    'Sec-Fetch-Site': 'same-origin',
+    'Priority': 'u=1, i',
 }
 
 
@@ -149,14 +164,17 @@ def get_user_id_from_html(session: requests.Session, actor_name: str) -> Optiona
         return None
 
 
-def fetch_videos(session: requests.Session, user_id: int, limit: int = 20) -> List[Dict]:
+def fetch_videos(session: requests.Session, user_id: int, actor_name: str = "", limit: int = 20) -> List[Dict]:
     all_videos = []
     offset = 0
+    api_headers = {**API_HEADERS}
+    if actor_name:
+        api_headers['Referer'] = f'https://www.xfree.com/{actor_name}'
 
     while True:
         url = f"https://www.xfree.com/api/post/?limit={limit}&offset={offset}&userId={user_id}"
         try:
-            resp = session.get(url, headers=API_HEADERS, timeout=30)
+            resp = session.get(url, headers=api_headers, timeout=30)
             resp.raise_for_status()
             data = resp.json()
         except Exception as e:
@@ -281,6 +299,14 @@ def download_file(session: requests.Session, url: str, filepath: Path, referer: 
         return False
 
 
+def warmup_session(session: requests.Session) -> None:
+    """访问首页获取初始 cookies（如 have18）"""
+    try:
+        session.get("https://www.xfree.com/", headers=HEADERS, timeout=30)
+    except Exception:
+        pass
+
+
 def process_actor(session: requests.Session, actor_name: str) -> None:
     print(f"\n{'='*60}")
     print(f"处理演员: {actor_name}")
@@ -297,7 +323,7 @@ def process_actor(session: requests.Session, actor_name: str) -> None:
     actor_dir.mkdir(parents=True, exist_ok=True)
 
     print(f"\n第一阶段：获取所有视频信息...")
-    videos = fetch_videos(session, user_id)
+    videos = fetch_videos(session, user_id, actor_name)
     print(f"  共获取到 {len(videos)} 个视频")
 
     print(f"\n第二阶段：开始批量下载...")
@@ -352,7 +378,9 @@ def main():
 
     print(f"找到 {len(actors)} 个演员: {', '.join(actors)}")
 
-    session = requests.Session()
+    session = cloudscraper.create_scraper()
+    session.headers.update(HEADERS)
+    warmup_session(session)
 
     for actor_name in actors:
         try:
