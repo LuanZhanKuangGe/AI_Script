@@ -235,13 +235,6 @@ def get_video_download_url(session: requests.Session, video_id: int, actor_name:
         except json.JSONDecodeError:
             pass
 
-    out_path = Path(f"debug_video_{video_id}.html")
-    out_path.write_text(html_text, encoding="utf-8")
-    print(f"    未找到 JSON-LD 中的 contentUrl，已保存到 {out_path}")
-    lim = 2000
-    print(f"    页面内容预览 ({lim} 字符):")
-    for line in html_text[:lim].splitlines():
-        print(f"    {line}")
     return None
 
 
@@ -343,7 +336,7 @@ def process_actor(session: requests.Session, actor_name: str) -> None:
     for idx, video in enumerate(videos, 1):
         video_id = video['video_id']
         video_name = validate_title(video['video_name'])
-        filename = f"{video_id}_{video_name}.mp4"
+        filename = f"[{video_id}] {video_name}.mp4"
         filepath = actor_dir / filename
 
         if filepath.exists():
