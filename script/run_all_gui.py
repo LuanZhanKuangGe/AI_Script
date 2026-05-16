@@ -17,16 +17,7 @@ SCRIPTS = [
     ("xfree",     "script/xfree.py"),
 ]
 
-FONT_UI = ("Microsoft YaHei", 10)
-FONT_LOG = ("Consolas", 10)
-
-
-def get_root() -> Path:
-    exe = Path(sys.executable if getattr(sys, 'frozen', False) else __file__)
-    return exe.parent.parent
-
-
-LOG_DIR = get_root() / "script" / "logs"
+LOG_DIR = Path(__file__).parent / "logs"
 LOG_DIR.mkdir(exist_ok=True)
 
 
@@ -70,26 +61,25 @@ class App:
     def __init__(self):
         self.root = tk.Tk()
         self.root.title("脚本并行调度器")
-        self.root.geometry("960x640")
-
-        style = ttk.Style()
-        style.configure(".", font=FONT_UI)
+        self.root.geometry("900x600")
 
         mode = sys.argv[1] if len(sys.argv) > 1 and sys.argv[1] in ("full", "quick") else "quick"
-        root_path = get_root()
+        root_path = Path(__file__).parent.parent
 
-        top_frame = ttk.Frame(self.root, padding=8)
+        # 顶部信息栏
+        top_frame = ttk.Frame(self.root, padding=6)
         top_frame.pack(fill=tk.X)
-        ttk.Label(top_frame, text=f"模式: {mode}").pack(side=tk.LEFT, padx=6)
-        self.status_label = ttk.Label(top_frame, text="就绪", font=(*FONT_UI, "bold"))
-        self.status_label.pack(side=tk.RIGHT, padx=6)
+        ttk.Label(top_frame, text=f"模式: {mode}").pack(side=tk.LEFT, padx=4)
+        self.status_label = ttk.Label(top_frame, text="就绪")
+        self.status_label.pack(side=tk.RIGHT, padx=4)
         start_btn = ttk.Button(top_frame, text="启动全部", command=lambda: self.start_all(root_path, mode))
-        start_btn.pack(side=tk.RIGHT, padx=6)
+        start_btn.pack(side=tk.RIGHT, padx=4)
 
+        # 笔记本（标签页）
         self.notebook = ttk.Notebook(self.root)
-        self.notebook.pack(fill=tk.BOTH, expand=True, padx=8, pady=(0, 8))
+        self.notebook.pack(fill=tk.BOTH, expand=True, padx=6, pady=(0, 6))
 
-        self.text_widgets = {}
+        self.text_widgets = {}  # name -> (text, queue, thread, runner)
         self.queues = {}
         self.running = False
 
@@ -101,10 +91,10 @@ class App:
             self.notebook.add(frame, text=name)
 
             if not exists:
-                ttk.Label(frame, text=f"脚本不存在: {script_path}", foreground="red", font=FONT_UI).pack(expand=True)
+                ttk.Label(frame, text=f"脚本不存在: {script_path}", foreground="red").pack(expand=True)
                 continue
 
-            text = scrolledtext.ScrolledText(frame, wrap=tk.WORD, state=tk.DISABLED, font=FONT_LOG)
+            text = scrolledtext.ScrolledText(frame, wrap=tk.WORD, state=tk.DISABLED, font=("Consolas", 10))
             text.pack(fill=tk.BOTH, expand=True)
 
             q = Queue()
@@ -129,11 +119,13 @@ class App:
             threads.append(t)
             self.text_widgets[name] = (text, q, t, runner)
 
+        # 启动轮询
         self.root.after(100, self.poll_queues)
 
     def poll_queues(self):
         any_alive = False
         for name, (text, q, thread, runner) in self.text_widgets.items():
+            # 排出当前队列的所有消息
             while True:
                 try:
                     line = q.get_nowait()
