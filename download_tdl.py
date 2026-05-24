@@ -18,7 +18,7 @@ CHANNELS = [
         'check_sound': True
     },
     {
-        'url': 'https://t.me/xiaoPyixia1',
+        'url': 'https://t.me/xiaoPyixia6',
         'dir': PORN_CN_SHORT_XIAOPYIXIA1,
         'check_sound': True
     },
