@@ -2,6 +2,7 @@ import re
 import sys
 import time
 from pathlib import Path
+from urllib.parse import unquote
 
 import requests
 
@@ -15,6 +16,8 @@ API_HEADERS = {
     "Origin": "https://www.iwara.tv",
     "Referer": "https://www.iwara.tv/",
 }
+
+QUALITY_PRIORITY = {"Source": 100, "540": 50, "360": 30}
 
 
 def request_with_retry(url, max_retries=3):
@@ -32,10 +35,15 @@ def request_with_retry(url, max_retries=3):
 
 def get_existing_ids(folder: Path):
     ids = set()
+    quality_tags = {"Source", "540", "360"}
     for mp4 in folder.rglob("*.mp4"):
-        m = re.search(r'\[([A-Za-z0-9]+)\]', mp4.name)
-        if m:
-            ids.add(m.group(1).lower())
+        brackets = re.findall(r'\[([^\]]+)\]', mp4.stem)
+        if not brackets:
+            continue
+        if len(brackets) >= 2 and brackets[-1] in quality_tags:
+            ids.add(brackets[-2].lower())
+        else:
+            ids.add(brackets[-1].lower())
     return ids
 
 
@@ -50,6 +58,80 @@ def get_artist_folders():
     return artists
 
 
+def get_best_download(video_id: str):
+    data = request_with_retry(f"https://api.iwara.tv/video/{video_id}")
+    if not data:
+        return None
+
+    file_url = data.get("fileUrl")
+    if not file_url:
+        return None
+
+    qualities = request_with_retry(file_url)
+    if not qualities:
+        return None
+
+    best = None
+    best_priority = -1
+    for q in qualities:
+        name = q.get("name", "")
+        if name == "preview":
+            continue
+        priority = QUALITY_PRIORITY.get(name, 10)
+        if priority > best_priority:
+            best_priority = priority
+            best = q
+
+    if not best:
+        return None
+
+    dl_path = best["src"]["download"]
+    dl_url = ("https:" + dl_path) if dl_path.startswith("//") else dl_path
+
+    quality_name = best["name"]
+    filename = unquote(dl_url.split("download=")[-1].split("&")[0]) if "download=" in dl_url else None
+
+    return {"url": dl_url, "quality": quality_name, "filename": filename}
+
+
+def sanitize_filename(name: str) -> str:
+    for ch in r'\/:*?"<>|':
+        name = name.replace(ch, '')
+    return name.strip()
+
+
+def download_video(dl_url: str, save_path: Path):
+    save_path.parent.mkdir(parents=True, exist_ok=True)
+    tmp_path = save_path.with_suffix(save_path.suffix + '.tmp')
+
+    dl_headers = {
+        "User-Agent": API_HEADERS["User-Agent"],
+        "Referer": "https://www.iwara.tv/",
+    }
+
+    try:
+        resp = requests.get(dl_url, headers=dl_headers, stream=True, timeout=300)
+        resp.raise_for_status()
+        total = int(resp.headers.get('Content-Length', 0))
+        downloaded = 0
+        last_print = 0
+        with open(tmp_path, 'wb') as f:
+            for chunk in resp.iter_content(chunk_size=8192):
+                f.write(chunk)
+                downloaded += len(chunk)
+                if total and (downloaded - last_print) >= 1024 * 1024:
+                    print(f"\r  下载中: {downloaded / (1024*1024):.1f}/{total / (1024*1024):.1f} MB", end='', flush=True)
+                    last_print = downloaded
+        tmp_path.rename(save_path)
+        print(f"\r  下载完成: {save_path.name} ({downloaded / (1024*1024):.1f} MB)")
+        return True
+    except Exception as e:
+        print(f"\n  下载失败: {e}")
+        if tmp_path.exists():
+            tmp_path.unlink()
+        return False
+
+
 def crawl_artist(artist: str, folder: Path):
     existing_ids = get_existing_ids(folder)
 
@@ -62,7 +144,7 @@ def crawl_artist(artist: str, folder: Path):
     username = profile_data["user"]["username"]
     print(f"\n=== {username} ({artist}) 已有 {len(existing_ids)} 个视频，查找新视频 ===")
 
-    new_videos = []
+    all_videos = []
     page = 0
 
     while True:
@@ -77,13 +159,14 @@ def crawl_artist(artist: str, folder: Path):
             break
 
         for video in results:
+            if video.get("private", False):
+                continue
             video_id = video["id"]
             if video_id.lower() in existing_ids:
                 continue
             slug = video.get("slug", "")
             title = video["title"]
-            video_url = f"/video/{video_id}/{slug}" if slug else f"/video/{video_id}"
-            new_videos.append((title, video_id, video_url))
+            all_videos.append({"id": video_id, "slug": slug, "title": title})
 
         count = data.get("count", 0)
         limit = data.get("limit", 50)
@@ -93,12 +176,49 @@ def crawl_artist(artist: str, folder: Path):
         page += 1
         time.sleep(0.5)
 
-    if new_videos:
-        for title, vid, vurl in new_videos:
-            print(f"{title}\t{vid}\t{vurl}")
-    else:
+    if not all_videos:
         print("  无新视频")
-    print(f"=== {artist}: 发现 {len(new_videos)} 个新视频 ===")
+        print(f"=== {artist}: 0 个新视频 ===")
+        return
+
+    print(f"  发现 {len(all_videos)} 个新视频，开始下载...")
+
+    success = 0
+    for i, video in enumerate(all_videos, 1):
+        vid = video["id"]
+        title = video["title"]
+        quality_tag = ""
+        print(f"\n[{i}/{len(all_videos)}] {title} ({vid})")
+
+        dl_info = get_best_download(vid)
+        if not dl_info:
+            print(f"  获取下载地址失败，跳过")
+            time.sleep(0.5)
+            continue
+
+        if dl_info["quality"] == "Source":
+            quality_tag = " [Source]"
+        else:
+            quality_tag = ""
+
+        filename = f"Iwara - {title} [{vid}]{quality_tag}.mp4"
+        filename = sanitize_filename(filename)
+        save_path = folder / filename
+
+        if save_path.exists():
+            print(f"  文件已存在，跳过")
+            existing_ids.add(vid.lower())
+            continue
+
+        print(f"  下载 {dl_info['quality']} 品质: {filename}")
+        if download_video(dl_info["url"], save_path):
+            success += 1
+        else:
+            print(f"  下载失败: {title}")
+
+        time.sleep(1)
+
+    print(f"\n=== {artist}: 下载完成 {success}/{len(all_videos)} ===")
 
 
 if __name__ == "__main__":
