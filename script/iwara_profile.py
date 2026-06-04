@@ -3,7 +3,7 @@ import re
 import sys
 import time
 from pathlib import Path
-from urllib.parse import urlparse, parse_qs
+from urllib.parse import urlparse, parse_qs, quote
 
 import requests
 
@@ -192,9 +192,13 @@ def crawl_artist(artist: str, folder: Path):
 
     user_id = profile_data["user"]["id"]
     username = profile_data["user"]["username"]
-    print(f"\n=== {username} ({artist}) 已有 {len(existing_ids)} 个视频，查找新视频 ===")
+    user_name = profile_data["user"].get("name", username)
+    updated_at = profile_data["user"].get("updatedAt", "")
+    updated_date = updated_at[:10] if updated_at else ""
 
     all_videos = []
+    total_likes = 0
+    total_videos = 0
     skipped_private = 0
     skipped_non_r18 = 0
     skipped_existing = 0
@@ -213,6 +217,8 @@ def crawl_artist(artist: str, folder: Path):
             break
 
         for video in results:
+            total_videos += 1
+            total_likes += video.get("numLikes", 0)
             if video.get("private", False):
                 skipped_private += 1
                 continue
@@ -239,6 +245,27 @@ def crawl_artist(artist: str, folder: Path):
         page += 1
         time.sleep(0.5)
 
+    avg_likes_k = ""
+    if total_videos > 0:
+        avg_likes = total_likes / total_videos
+        avg_likes_k = f"#{avg_likes / 1000:.1f}k"
+
+    parts = [f"[{username}]", user_name]
+    if updated_date:
+        parts.append(f"#{updated_date}")
+    if avg_likes_k:
+        parts.append(avg_likes_k)
+    new_folder_name = sanitize_filename(" ".join(parts))
+    new_folder = folder.parent / new_folder_name
+    if folder != new_folder and not new_folder.exists():
+        folder.rename(new_folder)
+        print(f"  文件夹重命名: {folder.name} -> {new_folder_name}")
+        folder = new_folder
+    elif folder != new_folder and new_folder.exists():
+        print(f"  目标文件夹已存在: {new_folder_name}，跳过重命名")
+    existing_ids = get_existing_ids(folder)
+
+    print(f"\n=== {username} ({artist}) 已有 {len(existing_ids)} 个视频，查找新视频 ===")
     print(f"  跳过: 私有={skipped_private}, 非R18={skipped_non_r18}, 已有={skipped_existing}, 收藏<{MIN_LIKES}={skipped_likes}")
 
     if not all_videos:
@@ -270,7 +297,6 @@ def crawl_artist(artist: str, folder: Path):
             continue
 
         filename = sanitize_filename(f"Iwara - {title} [{vid}] [Source].mp4")
-        from urllib.parse import quote
         url_line = f"{dl_info['url']}&artist={artist}&name={quote(filename)}"
         append_to_output(url_line)
         found += 1
