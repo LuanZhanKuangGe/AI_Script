@@ -174,13 +174,21 @@ def get_source_download(video_id: str):
     return {"has_source": True, "url": dl_url}
 
 
+OUTPUT_FILE = Path(__file__).parent / "download_list.txt"
+
+
+def append_to_output(url_line):
+    with open(OUTPUT_FILE, "a", encoding="utf-8") as f:
+        f.write(url_line + "\n")
+
+
 def crawl_artist(artist: str, folder: Path):
     existing_ids = get_existing_ids(folder)
 
     profile_data = request_with_retry(f"https://api.iwara.tv/profile/{artist}")
     if not profile_data:
         print(f"获取用户 {artist} 的资料失败")
-        return []
+        return
 
     user_id = profile_data["user"]["id"]
     username = profile_data["user"]["username"]
@@ -235,12 +243,11 @@ def crawl_artist(artist: str, folder: Path):
 
     if not all_videos:
         print("  无新视频")
-        print(f"=== {artist}: 0 个新视频 ===")
-        return []
+        return
 
     print(f"  发现 {len(all_videos)} 个新视频，解析下载地址...")
 
-    download_list = []
+    found = 0
     no_source = 0
     fail_info = 0
     for i, video in enumerate(all_videos, 1):
@@ -263,11 +270,12 @@ def crawl_artist(artist: str, folder: Path):
             continue
 
         filename = sanitize_filename(f"Iwara - {title} [{vid}] [Source].mp4")
-        download_list.append({"title": title, "id": vid, "filename": filename, "url": dl_info["url"]})
+        from urllib.parse import quote
+        url_line = f"{dl_info['url']}&artist={artist}&name={quote(filename)}"
+        append_to_output(url_line)
+        found += 1
 
-    print(f"\n=== {artist}: 可下载 {len(download_list)}, 无Source {no_source}, 解析失败 {fail_info} ===")
-
-    return download_list
+    print(f"\n=== {artist}: 写入 {found}, 无Source {no_source}, 解析失败 {fail_info} ===")
 
 
 if __name__ == "__main__":
@@ -281,16 +289,12 @@ if __name__ == "__main__":
 
     print(f"找到 {len(artists)} 个 artist 文件夹")
 
-    all_downloads = []
-    for artist, folder in artists:
-        result = crawl_artist(artist, folder)
-        if result:
-            all_downloads.extend(result)
+    with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
+        pass
 
-    if all_downloads:
-        output_file = Path(__file__).parent / "download_list.txt"
-        with open(output_file, "w", encoding="utf-8") as f:
-            for item in all_downloads:
-                f.write(f"{item['url']}/{item['filename']}\n")
-        print(f"\n下载列表已保存到: {output_file}")
-        print(f"共 {len(all_downloads)} 个视频")
+    for artist, folder in artists:
+        crawl_artist(artist, folder)
+
+    count = sum(1 for _ in open(OUTPUT_FILE, encoding="utf-8"))
+    print(f"\n下载列表已保存到: {OUTPUT_FILE}")
+    print(f"共 {count} 个视频")
