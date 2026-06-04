@@ -135,6 +135,12 @@ def get_artist_folders():
     return artists
 
 
+def sanitize_filename(name: str) -> str:
+    for ch in r'\/:*?"<>|':
+        name = name.replace(ch, '')
+    return name.strip()
+
+
 def get_source_download(video_id: str):
     data = request_with_retry(f"https://api.iwara.tv/video/{video_id}", use_auth=True)
     if not data:
@@ -165,44 +171,6 @@ def get_source_download(video_id: str):
     dl_url = ("https:" + dl_path) if dl_path.startswith("//") else dl_path
 
     return {"has_source": True, "url": dl_url}
-
-
-def sanitize_filename(name: str) -> str:
-    for ch in r'\/:*?"<>|':
-        name = name.replace(ch, '')
-    return name.strip()
-
-
-def download_video(dl_url: str, save_path: Path):
-    save_path.parent.mkdir(parents=True, exist_ok=True)
-    tmp_path = save_path.with_suffix(save_path.suffix + '.tmp')
-
-    dl_headers = {
-        "User-Agent": API_HEADERS["User-Agent"],
-        "Referer": "https://www.iwara.tv/",
-    }
-
-    try:
-        resp = requests.get(dl_url, headers=dl_headers, stream=True, timeout=300)
-        resp.raise_for_status()
-        total = int(resp.headers.get('Content-Length', 0))
-        downloaded = 0
-        last_print = 0
-        with open(tmp_path, 'wb') as f:
-            for chunk in resp.iter_content(chunk_size=8192):
-                f.write(chunk)
-                downloaded += len(chunk)
-                if total and (downloaded - last_print) >= 1024 * 1024:
-                    print(f"\r  下载中: {downloaded / (1024*1024):.1f}/{total / (1024*1024):.1f} MB", end='', flush=True)
-                    last_print = downloaded
-        tmp_path.rename(save_path)
-        print(f"\r  下载完成: {save_path.name} ({downloaded / (1024*1024):.1f} MB)")
-        return True
-    except Exception as e:
-        print(f"\n  下载失败: {e}")
-        if tmp_path.exists():
-            tmp_path.unlink()
-        return False
 
 
 def crawl_artist(artist: str, folder: Path):
@@ -265,46 +233,43 @@ def crawl_artist(artist: str, folder: Path):
         print(f"=== {artist}: 0 个新视频 ===")
         return
 
-    print(f"  发现 {len(all_videos)} 个新视频，开始下载...")
+    print(f"  发现 {len(all_videos)} 个新视频，解析下载地址...")
 
-    success = 0
+    download_list = []
     no_source = 0
+    fail_info = 0
     for i, video in enumerate(all_videos, 1):
         vid = video["id"]
         title = video["title"]
-        print(f"\n[{i}/{len(all_videos)}] {title} ({vid})")
+        print(f"  [{i}/{len(all_videos)}] {title} ({vid})")
 
         dl_info = get_source_download(vid)
         if not dl_info:
-            print(f"  获取下载信息失败，跳过")
+            print(f"    获取下载信息失败，跳过")
+            fail_info += 1
             time.sleep(0.5)
             continue
 
         if not dl_info["has_source"]:
             avail = ", ".join(dl_info["available"]) if dl_info["available"] else "无"
-            print(f"  无 Source 品质 (可用: {avail})，跳过")
+            print(f"    无 Source 品质 (可用: {avail})，跳过")
             no_source += 1
             time.sleep(0.5)
             continue
 
-        filename = f"Iwara - {title} [{vid}] [Source].mp4"
-        filename = sanitize_filename(filename)
-        save_path = folder / filename
+        filename = sanitize_filename(f"Iwara - {title} [{vid}] [Source].mp4")
+        download_list.append({"title": title, "id": vid, "filename": filename, "url": dl_info["url"]})
 
-        if save_path.exists():
-            print(f"  文件已存在，跳过")
-            existing_ids.add(vid.lower())
-            continue
+    print(f"\n=== {artist}: 可下载 {len(download_list)}, 无Source {no_source}, 解析失败 {fail_info} ===")
 
-        print(f"  下载 Source 品质: {filename}")
-        if download_video(dl_info["url"], save_path):
-            success += 1
-        else:
-            print(f"  下载失败: {title}")
-
-        time.sleep(1)
-
-    print(f"\n=== {artist}: 下载 {success}/{len(all_videos)}, 无Source {no_source} ===")
+    if download_list:
+        output_file = Path(__file__).parent / f"download_{artist}.txt"
+        with open(output_file, "w", encoding="utf-8") as f:
+            for item in download_list:
+                f.write(f"{item['url']}\n")
+                f.write(f"  out={item['filename']}\n")
+                f.write(f"  dir={folder}\n\n")
+        print(f"  下载列表已保存到: {output_file}")
 
 
 if __name__ == "__main__":
