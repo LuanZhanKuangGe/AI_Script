@@ -1,13 +1,19 @@
+import hashlib
 import re
 import sys
 import time
 from pathlib import Path
+from urllib.parse import urlparse, parse_qs
 
 import requests
 
 sys.stdout.reconfigure(encoding='utf-8')
 
 BASE_DIR = Path(r"D:\Hentai-MMD-new")
+
+IWARA_EMAIL = "lianyeshi"
+IWARA_PASSWORD = "6210445yezhise"
+IWARA_KEY = "mSvL05GfEmeEmsEYfGCnVpEjYgTJraJN"
 
 API_HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36 Edg/145.0.0.0",
@@ -16,13 +22,87 @@ API_HEADERS = {
     "Referer": "https://www.iwara.tv/",
 }
 
+session = requests.Session()
+_access_token = None
+_refresh_token = None
 
-def request_with_retry(url, max_retries=3):
+
+def login():
+    global _refresh_token, _access_token
+    resp = session.post(
+        "https://api.iwara.tv/user/login",
+        json={"email": IWARA_EMAIL, "password": IWARA_PASSWORD},
+        headers=API_HEADERS, timeout=15,
+    )
+    if resp.status_code != 200:
+        print(f"登录失败: HTTP {resp.status_code}")
+        return False
+    _refresh_token = resp.json()["token"]
+
+    resp2 = session.post(
+        "https://api.iwara.tv/user/token",
+        json={"refreshToken": _refresh_token},
+        headers={**API_HEADERS, "Authorization": f"Bearer {_refresh_token}"},
+        timeout=15,
+    )
+    if resp2.status_code != 200:
+        print(f"获取 access token 失败: HTTP {resp2.status_code}")
+        return False
+    _access_token = resp2.json()["accessToken"]
+    print("登录成功")
+    return True
+
+
+def refresh_access_token():
+    global _access_token
+    if not _refresh_token:
+        return False
+    try:
+        resp = session.post(
+            "https://api.iwara.tv/user/token",
+            json={"refreshToken": _refresh_token},
+            headers={**API_HEADERS, "Authorization": f"Bearer {_refresh_token}"},
+            timeout=15,
+        )
+        if resp.status_code == 200:
+            _access_token = resp.json()["accessToken"]
+            return True
+    except Exception:
+        pass
+    return False
+
+
+def get_auth_headers():
+    headers = {**API_HEADERS}
+    if _access_token:
+        headers["Authorization"] = f"Bearer {_access_token}"
+    return headers
+
+
+def get_x_version(url_str):
+    parsed = urlparse(url_str)
+    filename = parsed.path.split("/")[-1]
+    expires = ""
+    qs = parse_qs(parsed.query)
+    if "expires" in qs:
+        expires = qs["expires"][0]
+    data = f"{filename}_{expires}_{IWARA_KEY}".encode("utf-8")
+    return hashlib.sha1(data).hexdigest()
+
+
+def request_with_retry(url, max_retries=3, use_auth=False, use_xversion=False):
     for attempt in range(max_retries):
+        headers = get_auth_headers() if use_auth else API_HEADERS.copy()
+        if use_xversion:
+            headers["X-Version"] = get_x_version(url)
+            headers["X-Site"] = "www.iwara.tv"
         try:
-            resp = requests.get(url, headers=API_HEADERS, timeout=15)
+            resp = requests.get(url, headers=headers, timeout=15)
             if resp.status_code == 200:
                 return resp.json()
+            if resp.status_code == 401 and use_auth and attempt == 0:
+                if refresh_access_token():
+                    continue
             print(f"  HTTP {resp.status_code} (尝试 {attempt + 1}/{max_retries})")
         except requests.RequestException as e:
             print(f"  请求失败 (尝试 {attempt + 1}/{max_retries}): {e}")
@@ -56,7 +136,7 @@ def get_artist_folders():
 
 
 def get_source_download(video_id: str):
-    data = request_with_retry(f"https://api.iwara.tv/video/{video_id}")
+    data = request_with_retry(f"https://api.iwara.tv/video/{video_id}", use_auth=True)
     if not data:
         return None
 
@@ -64,7 +144,7 @@ def get_source_download(video_id: str):
     if not file_url:
         return None
 
-    qualities = request_with_retry(file_url)
+    qualities = request_with_retry(file_url, use_auth=True, use_xversion=True)
     if not qualities:
         return None
 
@@ -228,6 +308,9 @@ def crawl_artist(artist: str, folder: Path):
 
 
 if __name__ == "__main__":
+    if not login():
+        sys.exit(1)
+
     artists = get_artist_folders()
     if not artists:
         print(f"在 {BASE_DIR} 下未找到 [artist] 格式的文件夹")
