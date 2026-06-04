@@ -10,6 +10,7 @@ import requests
 sys.stdout.reconfigure(encoding='utf-8')
 
 BASE_DIR = Path(r"D:\Hentai-MMD-new")
+MIN_LIKES = 500
 
 IWARA_EMAIL = "lianyeshi"
 IWARA_PASSWORD = "6210445yezhise"
@@ -179,7 +180,7 @@ def crawl_artist(artist: str, folder: Path):
     profile_data = request_with_retry(f"https://api.iwara.tv/profile/{artist}")
     if not profile_data:
         print(f"获取用户 {artist} 的资料失败")
-        return
+        return []
 
     user_id = profile_data["user"]["id"]
     username = profile_data["user"]["username"]
@@ -189,6 +190,7 @@ def crawl_artist(artist: str, folder: Path):
     skipped_private = 0
     skipped_non_r18 = 0
     skipped_existing = 0
+    skipped_likes = 0
     page = 0
 
     while True:
@@ -210,6 +212,9 @@ def crawl_artist(artist: str, folder: Path):
             if rating != "ecchi":
                 skipped_non_r18 += 1
                 continue
+            if video.get("numLikes", 0) < MIN_LIKES:
+                skipped_likes += 1
+                continue
             video_id = video["id"]
             if video_id.lower() in existing_ids:
                 skipped_existing += 1
@@ -226,12 +231,12 @@ def crawl_artist(artist: str, folder: Path):
         page += 1
         time.sleep(0.5)
 
-    print(f"  跳过: 私有={skipped_private}, 非R18={skipped_non_r18}, 已有={skipped_existing}")
+    print(f"  跳过: 私有={skipped_private}, 非R18={skipped_non_r18}, 已有={skipped_existing}, 收藏<{MIN_LIKES}={skipped_likes}")
 
     if not all_videos:
         print("  无新视频")
         print(f"=== {artist}: 0 个新视频 ===")
-        return
+        return []
 
     print(f"  发现 {len(all_videos)} 个新视频，解析下载地址...")
 
@@ -262,14 +267,7 @@ def crawl_artist(artist: str, folder: Path):
 
     print(f"\n=== {artist}: 可下载 {len(download_list)}, 无Source {no_source}, 解析失败 {fail_info} ===")
 
-    if download_list:
-        output_file = Path(__file__).parent / f"download_{artist}.txt"
-        with open(output_file, "w", encoding="utf-8") as f:
-            for item in download_list:
-                f.write(f"{item['url']}\n")
-                f.write(f"  out={item['filename']}\n")
-                f.write(f"  dir={folder}\n\n")
-        print(f"  下载列表已保存到: {output_file}")
+    return download_list
 
 
 if __name__ == "__main__":
@@ -282,5 +280,17 @@ if __name__ == "__main__":
         sys.exit(1)
 
     print(f"找到 {len(artists)} 个 artist 文件夹")
+
+    all_downloads = []
     for artist, folder in artists:
-        crawl_artist(artist, folder)
+        result = crawl_artist(artist, folder)
+        if result:
+            all_downloads.extend(result)
+
+    if all_downloads:
+        output_file = Path(__file__).parent / "download_list.txt"
+        with open(output_file, "w", encoding="utf-8") as f:
+            for item in all_downloads:
+                f.write(f"{item['url']}/{item['filename']}\n")
+        print(f"\n下载列表已保存到: {output_file}")
+        print(f"共 {len(all_downloads)} 个视频")
