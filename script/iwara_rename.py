@@ -1,3 +1,4 @@
+import shutil
 import sys
 from pathlib import Path
 from urllib.parse import urlparse, parse_qs, unquote
@@ -5,7 +6,7 @@ from urllib.parse import urlparse, parse_qs, unquote
 sys.stdout.reconfigure(encoding='utf-8')
 
 BASE_DIR = Path(r"D:\Hentai-MMD-new")
-DOWNLOAD_DIR = Path(r"C:\Users\zhoub\Downloads")
+DOWNLOAD_DIR = Path(r"D:\Hentai-MMD\#Download")
 LIST_FILE = Path(__file__).parent / "download_list.txt"
 
 
@@ -74,7 +75,7 @@ def main():
             skipped += 1
             continue
 
-        src.rename(dst)
+        shutil.move(str(src), str(dst))
         print(f"  [{i}] {src.name} -> {dst.parent.name}\\{dst.name}")
         moved += 1
 
