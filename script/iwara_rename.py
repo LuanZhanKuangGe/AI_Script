@@ -19,7 +19,7 @@ def parse_line(line):
     name = qs.get("name", [""])[0]
     if name:
         name = unquote(name)
-    filename = parsed.path.split("/")[-1]
+    filename = qs.get("filename", [""])[0]
     return {"url": line, "artist": artist, "name": name, "filename": filename}
 
 
