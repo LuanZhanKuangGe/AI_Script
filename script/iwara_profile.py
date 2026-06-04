@@ -2,7 +2,6 @@ import re
 import sys
 import time
 from pathlib import Path
-from urllib.parse import unquote
 
 import requests
 
@@ -16,8 +15,6 @@ API_HEADERS = {
     "Origin": "https://www.iwara.tv",
     "Referer": "https://www.iwara.tv/",
 }
-
-QUALITY_PRIORITY = {"Source": 100, "540": 50, "360": 30}
 
 
 def request_with_retry(url, max_retries=3):
@@ -58,7 +55,7 @@ def get_artist_folders():
     return artists
 
 
-def get_best_download(video_id: str):
+def get_source_download(video_id: str):
     data = request_with_retry(f"https://api.iwara.tv/video/{video_id}")
     if not data:
         return None
@@ -71,27 +68,23 @@ def get_best_download(video_id: str):
     if not qualities:
         return None
 
-    best = None
-    best_priority = -1
+    source = None
+    available = []
     for q in qualities:
         name = q.get("name", "")
-        if name == "preview":
-            continue
-        priority = QUALITY_PRIORITY.get(name, 10)
-        if priority > best_priority:
-            best_priority = priority
-            best = q
+        if name == "Source":
+            source = q
+            break
+        if name != "preview":
+            available.append(name)
 
-    if not best:
-        return None
+    if not source:
+        return {"has_source": False, "available": available}
 
-    dl_path = best["src"]["download"]
+    dl_path = source["src"]["download"]
     dl_url = ("https:" + dl_path) if dl_path.startswith("//") else dl_path
 
-    quality_name = best["name"]
-    filename = unquote(dl_url.split("download=")[-1].split("&")[0]) if "download=" in dl_url else None
-
-    return {"url": dl_url, "quality": quality_name, "filename": filename}
+    return {"has_source": True, "url": dl_url}
 
 
 def sanitize_filename(name: str) -> str:
@@ -145,6 +138,9 @@ def crawl_artist(artist: str, folder: Path):
     print(f"\n=== {username} ({artist}) 已有 {len(existing_ids)} 个视频，查找新视频 ===")
 
     all_videos = []
+    skipped_private = 0
+    skipped_non_r18 = 0
+    skipped_existing = 0
     page = 0
 
     while True:
@@ -160,9 +156,15 @@ def crawl_artist(artist: str, folder: Path):
 
         for video in results:
             if video.get("private", False):
+                skipped_private += 1
+                continue
+            rating = video.get("rating", "")
+            if rating != "ecchi":
+                skipped_non_r18 += 1
                 continue
             video_id = video["id"]
             if video_id.lower() in existing_ids:
+                skipped_existing += 1
                 continue
             slug = video.get("slug", "")
             title = video["title"]
@@ -176,6 +178,8 @@ def crawl_artist(artist: str, folder: Path):
         page += 1
         time.sleep(0.5)
 
+    print(f"  跳过: 私有={skipped_private}, 非R18={skipped_non_r18}, 已有={skipped_existing}")
+
     if not all_videos:
         print("  无新视频")
         print(f"=== {artist}: 0 个新视频 ===")
@@ -184,24 +188,26 @@ def crawl_artist(artist: str, folder: Path):
     print(f"  发现 {len(all_videos)} 个新视频，开始下载...")
 
     success = 0
+    no_source = 0
     for i, video in enumerate(all_videos, 1):
         vid = video["id"]
         title = video["title"]
-        quality_tag = ""
         print(f"\n[{i}/{len(all_videos)}] {title} ({vid})")
 
-        dl_info = get_best_download(vid)
+        dl_info = get_source_download(vid)
         if not dl_info:
-            print(f"  获取下载地址失败，跳过")
+            print(f"  获取下载信息失败，跳过")
             time.sleep(0.5)
             continue
 
-        if dl_info["quality"] == "Source":
-            quality_tag = " [Source]"
-        else:
-            quality_tag = ""
+        if not dl_info["has_source"]:
+            avail = ", ".join(dl_info["available"]) if dl_info["available"] else "无"
+            print(f"  无 Source 品质 (可用: {avail})，跳过")
+            no_source += 1
+            time.sleep(0.5)
+            continue
 
-        filename = f"Iwara - {title} [{vid}]{quality_tag}.mp4"
+        filename = f"Iwara - {title} [{vid}] [Source].mp4"
         filename = sanitize_filename(filename)
         save_path = folder / filename
 
@@ -210,7 +216,7 @@ def crawl_artist(artist: str, folder: Path):
             existing_ids.add(vid.lower())
             continue
 
-        print(f"  下载 {dl_info['quality']} 品质: {filename}")
+        print(f"  下载 Source 品质: {filename}")
         if download_video(dl_info["url"], save_path):
             success += 1
         else:
@@ -218,7 +224,7 @@ def crawl_artist(artist: str, folder: Path):
 
         time.sleep(1)
 
-    print(f"\n=== {artist}: 下载完成 {success}/{len(all_videos)} ===")
+    print(f"\n=== {artist}: 下载 {success}/{len(all_videos)}, 无Source {no_source} ===")
 
 
 if __name__ == "__main__":
