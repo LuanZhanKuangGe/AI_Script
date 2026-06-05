@@ -1,7 +1,9 @@
 import hashlib
+import json
 import re
 import sys
 import time
+from datetime import datetime, timedelta
 from pathlib import Path
 from urllib.parse import urlparse, parse_qs, quote
 
@@ -11,6 +13,8 @@ sys.stdout.reconfigure(encoding='utf-8')
 
 BASE_DIR = Path(r"D:\Hentai-MMD-new")
 MIN_LIKES = 500
+CACHE_INTERVAL = timedelta(hours=3)
+CACHE_FILE = Path(__file__).parent / "crawl_cache.json"
 
 IWARA_EMAIL = "lianyeshi"
 IWARA_PASSWORD = "6210445yezhise"
@@ -174,9 +178,22 @@ def get_source_download(video_id: str):
     return {"has_source": True, "url": dl_url}
 
 
-from datetime import datetime
+from datetime import datetime, timedelta
 OUTPUT_DIR = Path(r"C:\Users\zhoub\Downloads")
 OUTPUT_FILE = OUTPUT_DIR / f"download_list_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
+
+
+def load_cache():
+    if CACHE_FILE.exists():
+        try:
+            return json.loads(CACHE_FILE.read_text(encoding="utf-8"))
+        except Exception:
+            return {}
+    return {}
+
+
+def save_cache(cache):
+    CACHE_FILE.write_text(json.dumps(cache, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
 def append_to_output(url_line):
@@ -223,7 +240,18 @@ def rename_existing_videos(folder: Path, video_info: dict):
         print(f"  重命名 {renamed} 个现有视频" + (f"，跳过 {skipped} 个" if skipped else ""))
 
 
-def crawl_artist(artist: str, folder: Path):
+def crawl_artist(artist: str, folder: Path, cache: dict):
+    now = datetime.now()
+    last_time = cache.get(artist)
+    if last_time:
+        try:
+            elapsed = now - datetime.fromisoformat(last_time)
+            if elapsed < CACHE_INTERVAL:
+                print(f"\n=== {artist}: 跳过（{elapsed.seconds // 60} 分钟前已处理） ===")
+                return
+        except Exception:
+            pass
+
     existing_ids = get_existing_ids(folder)
 
     profile_data = request_with_retry(f"https://api.iwara.tv/profile/{artist}")
@@ -350,6 +378,7 @@ def crawl_artist(artist: str, folder: Path):
         found += 1
 
     print(f"\n=== {artist}: 写入 {found}, 无Source {no_source}, 解析失败 {fail_info} ===")
+    cache[artist] = datetime.now().isoformat()
 
 
 if __name__ == "__main__":
@@ -366,8 +395,10 @@ if __name__ == "__main__":
     with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
         pass
 
+    cache = load_cache()
     for artist, folder in artists:
-        crawl_artist(artist, folder)
+        crawl_artist(artist, folder, cache)
+    save_cache(cache)
 
     count = sum(1 for _ in open(OUTPUT_FILE, encoding="utf-8"))
     print(f"\n下载列表已保存到: {OUTPUT_FILE}")
