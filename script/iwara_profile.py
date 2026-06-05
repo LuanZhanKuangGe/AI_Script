@@ -174,7 +174,9 @@ def get_source_download(video_id: str):
     return {"has_source": True, "url": dl_url}
 
 
-OUTPUT_FILE = Path(__file__).parent / "download_list.txt"
+from datetime import datetime
+OUTPUT_DIR = Path(r"C:\Users\zhoub\Downloads")
+OUTPUT_FILE = OUTPUT_DIR / f"download_list_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
 
 
 def append_to_output(url_line):
