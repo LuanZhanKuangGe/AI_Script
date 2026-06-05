@@ -398,7 +398,7 @@ if __name__ == "__main__":
     cache = load_cache()
     for artist, folder in artists:
         crawl_artist(artist, folder, cache)
-    save_cache(cache)
+        save_cache(cache)
 
     count = sum(1 for _ in open(OUTPUT_FILE, encoding="utf-8"))
     print(f"\n下载列表已保存到: {OUTPUT_FILE}")
