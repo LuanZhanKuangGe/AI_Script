@@ -146,6 +146,21 @@ def sanitize_filename(name: str) -> str:
     return name.strip()
 
 
+MAX_PATH_LEN = 240
+
+
+def build_video_filename(date: str, title: str, vid: str, folder: Path) -> str:
+    folder_len = len(str(folder))
+    suffix = f" [{vid}] [Source].mp4"
+    max_title_len = MAX_PATH_LEN - folder_len - 1 - len(f"[{date}] ") - len(suffix)
+    if max_title_len < 10:
+        max_title_len = 10
+    truncated = title
+    if len(truncated) > max_title_len:
+        truncated = title[:max_title_len - 1] + "\u2026"
+    return sanitize_filename(f"[{date}] {truncated} [{vid}] [Source].mp4")
+
+
 def get_source_download(video_id: str):
     data = request_with_retry(f"https://api.iwara.tv/video/{video_id}", use_auth=True)
     if not data:
@@ -227,7 +242,7 @@ def rename_existing_videos(folder: Path, video_info: dict):
 
         date = info["date"]
         title = info["title"]
-        new_name = sanitize_filename(f"[{date}] {title} [{vid}] [Source].mp4")
+        new_name = build_video_filename(date, title, vid, mp4.parent)
         new_path = mp4.parent / new_name
         if new_path.exists():
             skipped += 1
@@ -372,7 +387,7 @@ def crawl_artist(artist: str, folder: Path, cache: dict):
             time.sleep(0.5)
             continue
 
-        filename = sanitize_filename(f"[{vdate}] {title} [{vid}] [Source].mp4")
+        filename = build_video_filename(vdate, title, vid, folder)
         url_line = f"{dl_info['url']}&artist={artist}&name={quote(filename)}"
         append_to_output(url_line)
         found += 1
