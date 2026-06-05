@@ -182,6 +182,45 @@ def append_to_output(url_line):
         f.write(url_line + "\n")
 
 
+def rename_existing_videos(folder: Path, video_info: dict):
+    renamed = 0
+    skipped = 0
+    for mp4 in sorted(folder.glob("*.mp4")):
+        if re.match(r'^\[\d{4}-\d{2}-\d{2}\]', mp4.stem):
+            continue
+
+        brackets = re.findall(r'\[([^\]]+)\]', mp4.stem)
+        quality_tags = {"Source", "540", "360"}
+        vid = None
+        if len(brackets) >= 2 and brackets[-1] in quality_tags:
+            vid = brackets[-2]
+        elif brackets:
+            vid = brackets[-1]
+
+        if not vid:
+            skipped += 1
+            continue
+
+        info = video_info.get(vid.lower())
+        if not info:
+            skipped += 1
+            continue
+
+        date = info["date"]
+        title = info["title"]
+        new_name = sanitize_filename(f"[{date}] {title} [{vid}] [Source].mp4")
+        new_path = mp4.parent / new_name
+        if new_path.exists():
+            skipped += 1
+            continue
+        mp4.rename(new_path)
+        print(f"    重命名: {mp4.name} -> {new_name}")
+        renamed += 1
+
+    if renamed or skipped:
+        print(f"  重命名 {renamed} 个现有视频" + (f"，跳过 {skipped} 个" if skipped else ""))
+
+
 def crawl_artist(artist: str, folder: Path):
     existing_ids = get_existing_ids(folder)
 
@@ -197,6 +236,7 @@ def crawl_artist(artist: str, folder: Path):
     updated_date = updated_at[:10] if updated_at else ""
 
     all_videos = []
+    video_info = {}
     total_likes = 0
     total_videos = 0
     skipped_private = 0
@@ -219,6 +259,9 @@ def crawl_artist(artist: str, folder: Path):
         for video in results:
             total_videos += 1
             total_likes += video.get("numLikes", 0)
+            created_at = video.get("createdAt", "")
+            video_date = created_at[:10] if created_at else ""
+            video_info[video["id"].lower()] = {"date": video_date, "title": video["title"]}
             if video.get("private", False):
                 skipped_private += 1
                 continue
@@ -235,7 +278,7 @@ def crawl_artist(artist: str, folder: Path):
                 continue
             slug = video.get("slug", "")
             title = video["title"]
-            all_videos.append({"id": video_id, "slug": slug, "title": title})
+            all_videos.append({"id": video_id, "slug": slug, "title": title, "date": video_date})
 
         count = data.get("count", 0)
         limit = data.get("limit", 50)
@@ -265,6 +308,8 @@ def crawl_artist(artist: str, folder: Path):
         print(f"  目标文件夹已存在: {new_folder_name}，跳过重命名")
     existing_ids = get_existing_ids(folder)
 
+    rename_existing_videos(folder, video_info)
+
     print(f"\n=== {username} ({artist}) 已有 {len(existing_ids)} 个视频，查找新视频 ===")
     print(f"  跳过: 私有={skipped_private}, 非R18={skipped_non_r18}, 已有={skipped_existing}, 收藏<{MIN_LIKES}={skipped_likes}")
 
@@ -280,6 +325,7 @@ def crawl_artist(artist: str, folder: Path):
     for i, video in enumerate(all_videos, 1):
         vid = video["id"]
         title = video["title"]
+        vdate = video["date"]
         print(f"  [{i}/{len(all_videos)}] {title} ({vid})")
 
         dl_info = get_source_download(vid)
@@ -296,7 +342,7 @@ def crawl_artist(artist: str, folder: Path):
             time.sleep(0.5)
             continue
 
-        filename = sanitize_filename(f"Iwara - {title} [{vid}] [Source].mp4")
+        filename = sanitize_filename(f"[{vdate}] {title} [{vid}] [Source].mp4")
         url_line = f"{dl_info['url']}&artist={artist}&name={quote(filename)}"
         append_to_output(url_line)
         found += 1
