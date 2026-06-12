@@ -117,17 +117,19 @@ def api_start():
 @app.route("/api/start_all", methods=["POST"])
 def api_start_all():
     data = request.get_json()
-    mode = data.get("mode", "quick")
-    ids = data.get("ids")
-    for s in SCRIPTS:
-        if ids and s["id"] not in ids:
+    items = data.get("items", [])
+    for item in items:
+        script_id = item.get("id")
+        mode = item.get("mode")
+        info = next((s for s in SCRIPTS if s["id"] == script_id), None)
+        if not info:
             continue
-        if not Path(s["path"]).exists():
+        if not Path(info["path"]).exists():
             continue
-        if script_state.get(s["id"]) == "running":
+        if script_state.get(script_id) == "running":
             continue
-        m = mode if s.get("modes") else None
-        t = threading.Thread(target=run_script, args=(s["id"], m), daemon=True)
+        m = mode if mode and mode in info.get("modes", []) else None
+        t = threading.Thread(target=run_script, args=(script_id, m), daemon=True)
         t.start()
     return json.dumps({"ok": True})
 
@@ -197,7 +199,7 @@ body {
 .app { display: flex; height: 100vh; }
 
 .sidebar {
-  width: 280px;
+  width: 300px;
   background: var(--surface);
   border-right: 1px solid var(--border);
   display: flex;
@@ -214,32 +216,6 @@ body {
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
-.mode-bar {
-  padding: 12px 16px;
-  border-bottom: 1px solid var(--border);
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.mode-bar label { font-size: 13px; color: var(--text2); }
-.mode-toggle {
-  display: flex;
-  background: var(--surface2);
-  border-radius: 8px;
-  overflow: hidden;
-  border: 1px solid var(--border);
-}
-.mode-btn {
-  padding: 6px 16px;
-  font-size: 13px;
-  border: none;
-  background: transparent;
-  color: var(--text2);
-  cursor: pointer;
-  transition: all 0.2s;
-}
-.mode-btn.active { background: var(--accent); color: #fff; }
-.mode-btn:hover:not(.active) { color: var(--text); }
 
 .script-list { flex: 1; overflow-y: auto; padding: 4px 8px; }
 .script-item {
@@ -275,7 +251,34 @@ body {
 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
 .script-item .info { flex: 1; min-width: 0; }
 .script-item .name { font-size: 13px; font-weight: 600; }
-.script-item .modes-tag { font-size: 10px; color: var(--text2); }
+.script-item .row2 { display: flex; align-items: center; gap: 6px; margin-top: 2px; }
+
+.mode-toggle-sm {
+  display: inline-flex;
+  background: var(--surface2);
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+.mode-toggle-sm .mb {
+  padding: 2px 8px;
+  font-size: 10px;
+  border: none;
+  background: transparent;
+  color: var(--text2);
+  cursor: pointer;
+  transition: all 0.15s;
+  line-height: 1.4;
+}
+.mode-toggle-sm .mb.active { background: var(--accent); color: #fff; }
+.mode-toggle-sm .mb:hover:not(.active) { color: var(--text); }
+.mode-tag-sm {
+  font-size: 10px;
+  color: var(--text2);
+  background: var(--surface2);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
 
 .bottom-bar {
   padding: 16px;
@@ -396,13 +399,6 @@ body {
 <div class="app">
   <div class="sidebar">
     <div class="sidebar-header">&#9654; Script Runner</div>
-    <div class="mode-bar">
-      <label>Mode</label>
-      <div class="mode-toggle">
-        <button class="mode-btn active" data-mode="quick">Quick</button>
-        <button class="mode-btn" data-mode="full">Full</button>
-      </div>
-    </div>
     <div class="script-list" id="scriptList"></div>
     <div class="bottom-bar">
       <label class="select-all-row">
@@ -437,17 +433,9 @@ body {
 
 <script>
 const scripts = {};
+const scriptModes = {};
 let currentScript = null;
-let currentMode = 'quick';
 let pollTimer = null;
-
-document.querySelectorAll('.mode-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    currentMode = btn.dataset.mode;
-  });
-});
 
 document.getElementById('selectAll').addEventListener('change', function() {
   const checked = this.checked;
@@ -466,6 +454,9 @@ async function loadScripts() {
   list.innerHTML = '';
   data.forEach(s => {
     scripts[s.id] = s;
+    if (!scriptModes[s.id]) {
+      scriptModes[s.id] = s.modes.includes('quick') ? 'quick' : (s.modes[0] || 'full');
+    }
     const div = document.createElement('div');
     div.className = 'script-item' + (activeId === s.id ? ' active' : '');
     div.dataset.id = s.id;
@@ -474,12 +465,22 @@ async function loadScripts() {
       stateIcon = s.state === 'done:0' ? ' &#10003;' : ' &#10007;';
     }
     const wasChecked = prevChecks[s.id] !== undefined ? prevChecks[s.id] : selAll.checked;
+
+    let modeHtml = '';
+    if (s.modes.length > 1) {
+      modeHtml = `<div class="mode-toggle-sm" onclick="event.stopPropagation()">` +
+        s.modes.map(m => `<button class="mb${scriptModes[s.id]===m?' active':''}" data-id="${s.id}" data-mode="${m}" onclick="setMode('${s.id}','${m}')">${m.charAt(0).toUpperCase()+m.slice(1)}</button>`).join('') +
+        `</div>`;
+    } else if (s.modes.length === 1) {
+      modeHtml = `<span class="mode-tag-sm">${s.modes[0]}</span>`;
+    }
+
     div.innerHTML = `
       <input type="checkbox" class="script-check" data-id="${s.id}" ${wasChecked ? 'checked' : ''} onclick="event.stopPropagation()">
       <div class="status-dot ${s.state.replace(':','\\:')}"></div>
       <div class="info" onclick="selectScript('${s.id}')">
         <div class="name">${s.name}${stateIcon}</div>
-        <div class="modes-tag">${s.modes.length ? s.modes.join('/') : 'full'}</div>
+        <div class="row2">${modeHtml}</div>
       </div>
     `;
     list.appendChild(div);
@@ -488,6 +489,15 @@ async function loadScripts() {
   const anyRunning = data.some(s => s.state === 'running');
   document.getElementById('btnStartAll').disabled = anyRunning;
   if (activeId && scripts[activeId]) updateActions(activeId);
+}
+
+function setMode(id, mode) {
+  scriptModes[id] = mode;
+  const toggle = document.querySelector(`.mode-toggle-sm [data-id="${id}"][data-mode="${mode}"]`);
+  if (toggle) {
+    toggle.closest('.mode-toggle-sm').querySelectorAll('.mb').forEach(b => b.classList.remove('active'));
+    toggle.classList.add('active');
+  }
 }
 
 function updateActions(id) {
@@ -555,15 +565,16 @@ function startPolling(id) {
 }
 
 document.getElementById('btnStartAll').addEventListener('click', async () => {
-  const selected = [];
+  const items = [];
   document.querySelectorAll('.script-check:checked').forEach(cb => {
-    selected.push(cb.dataset.id);
+    const id = cb.dataset.id;
+    items.push({ id: id, mode: scriptModes[id] || 'quick' });
   });
-  if (selected.length === 0) return;
+  if (items.length === 0) return;
   await fetch('/api/start_all', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({mode: currentMode, ids: selected}),
+    body: JSON.stringify({items: items}),
   });
   loadScripts();
 });
