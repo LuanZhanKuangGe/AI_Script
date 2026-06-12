@@ -2,6 +2,9 @@ import platform
 from pathlib import Path
 
 
+QINGLONG_SCRIPTS = Path(r"\\Z4PRO-4B98\nvme13-133XXXX8510\docker\qinglong\scripts")
+
+
 def _make_path(windows_path: str, linux_path: str) -> Path:
     if platform.system() == "Windows":
         return Path(windows_path)
