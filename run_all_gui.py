@@ -12,20 +12,20 @@ from flask import Flask, request
 SCRIPTS_DIR = Path(__file__).parent / "script"
 
 SCRIPTS = [
-    {"id": "tikporn",      "name": "TikPorn",      "path": str(SCRIPTS_DIR / "tikporn.py"),   "modes": ["quick", "full"]},
-    {"id": "sharesome",     "name": "ShareSome",     "path": str(SCRIPTS_DIR / "sharesome.py"), "modes": ["quick", "full"]},
-    {"id": "xxxfollow",     "name": "XXXFollow",     "path": str(SCRIPTS_DIR / "xxxfollow.py"), "modes": ["quick", "full"]},
-    {"id": "waptap",        "name": "WapTap",        "path": str(SCRIPTS_DIR / "waptap.py"),    "modes": ["quick", "full"]},
-    {"id": "fikfap",        "name": "FikFap",        "path": str(SCRIPTS_DIR / "fikfap.py"),    "modes": ["quick", "full"]},
-    {"id": "xfree",         "name": "XFree",         "path": str(SCRIPTS_DIR / "xfree.py"),     "modes": ["quick", "full"]},
-    {"id": "download_tdl",  "name": "Download TDL",  "path": str(SCRIPTS_DIR / "download_tdl.py")},
-    {"id": "fyppt",         "name": "FYPPT",         "path": str(SCRIPTS_DIR / "fyppt.py"),      "modes": ["quick", "full"]},
-    {"id": "reddclips",     "name": "ReddClips",     "path": str(SCRIPTS_DIR / "reddclips.py"),   "modes": ["quick", "full"]},
-    {"id": "reelsmunkey",   "name": "ReelsMunkey",   "path": str(SCRIPTS_DIR / "reelsmunkey.py"),"modes": ["quick", "full"]},
-    {"id": "rule34",        "name": "Rule34",         "path": str(SCRIPTS_DIR / "rule34.py"),     "modes": ["quick", "full"]},
-    {"id": "jav",           "name": "JAV",            "path": str(SCRIPTS_DIR / "jav.py"),         "modes": ["quick", "full"]},
-    {"id": "manga",         "name": "Manga",          "path": str(SCRIPTS_DIR / "manga.py"),       "modes": ["full"]},
-    {"id": "hanime",        "name": "Hanime",         "path": str(SCRIPTS_DIR / "hanime.py"),      "modes": ["full"]},
+    {"id": "tikporn",      "name": "TikPorn",      "path": str(SCRIPTS_DIR / "tikporn.py"),   "modes": ["quick", "full"], "group": "Porn-Web"},
+    {"id": "sharesome",     "name": "ShareSome",     "path": str(SCRIPTS_DIR / "sharesome.py"), "modes": ["quick", "full"], "group": "Porn-Web"},
+    {"id": "xxxfollow",     "name": "XXXFollow",     "path": str(SCRIPTS_DIR / "xxxfollow.py"), "modes": ["quick", "full"], "group": "Porn-Web"},
+    {"id": "waptap",        "name": "WapTap",        "path": str(SCRIPTS_DIR / "waptap.py"),    "modes": ["quick", "full"], "group": "Porn-Web"},
+    {"id": "fikfap",        "name": "FikFap",        "path": str(SCRIPTS_DIR / "fikfap.py"),    "modes": ["quick", "full"], "group": "Porn-Web"},
+    {"id": "xfree",         "name": "XFree",         "path": str(SCRIPTS_DIR / "xfree.py"),     "modes": ["quick", "full"], "group": "Porn-Web"},
+    {"id": "download_tdl",  "name": "Download TDL",  "path": str(SCRIPTS_DIR / "download_tdl.py"),                              "group": "Porn-Web-2"},
+    {"id": "fyppt",         "name": "FYPPT",         "path": str(SCRIPTS_DIR / "fyppt.py"),      "modes": ["quick", "full"], "group": "Porn-Web-2"},
+    {"id": "reddclips",     "name": "ReddClips",     "path": str(SCRIPTS_DIR / "reddclips.py"),   "modes": ["quick", "full"], "group": "Porn-Web-2"},
+    {"id": "reelsmunkey",   "name": "ReelsMunkey",   "path": str(SCRIPTS_DIR / "reelsmunkey.py"),"modes": ["quick", "full"], "group": "Porn-Web-2"},
+    {"id": "rule34",        "name": "Rule34",         "path": str(SCRIPTS_DIR / "rule34.py"),     "modes": ["quick", "full"], "group": "Hentai"},
+    {"id": "jav",           "name": "JAV",            "path": str(SCRIPTS_DIR / "jav.py"),         "modes": ["quick", "full"], "group": "JAV"},
+    {"id": "manga",         "name": "Manga",          "path": str(SCRIPTS_DIR / "manga.py"),       "modes": ["full"],          "group": "JAV"},
+    {"id": "hanime",        "name": "Hanime",         "path": str(SCRIPTS_DIR / "hanime.py"),      "modes": ["full"],          "group": "JAV"},
 ]
 
 LOG_DIR = SCRIPTS_DIR / "logs"
@@ -96,6 +96,7 @@ def api_scripts():
             "id": s["id"],
             "name": s["name"],
             "modes": s.get("modes", []),
+            "group": s.get("group", ""),
             "exists": Path(s["path"]).exists(),
             "state": script_state.get(s["id"], "idle"),
         })
@@ -251,6 +252,14 @@ body {
 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
 .script-item .info { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .script-item .name { font-size: 13px; font-weight: 600; white-space: nowrap; }
+.group-header {
+  padding: 12px 12px 4px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text2);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
 
 .mode-toggle-sm {
   display: inline-flex;
@@ -435,6 +444,9 @@ document.getElementById('selectAll').addEventListener('change', function() {
   document.querySelectorAll('.script-check').forEach(cb => { cb.checked = checked; });
 });
 
+const GROUP_ORDER = ['Porn-Web', 'Porn-Web-2', 'Hentai', 'JAV'];
+const GROUP_NAMES = {'Porn-Web': 'Porn-Web', 'Porn-Web-2': 'Porn-Web 2', 'Hentai': 'Hentai', 'JAV': 'JAV'};
+
 async function loadScripts() {
   const resp = await fetch('/api/scripts');
   const data = await resp.json();
@@ -445,7 +457,16 @@ async function loadScripts() {
   document.querySelectorAll('.script-check').forEach(cb => { prevChecks[cb.dataset.id] = cb.checked; });
 
   list.innerHTML = '';
-  data.forEach(s => {
+  const groups = {};
+  data.forEach(s => { (groups[s.group] = groups[s.group] || []).push(s); });
+  GROUP_ORDER.forEach(gid => {
+    const g = groups[gid];
+    if (!g) return;
+    const hdr = document.createElement('div');
+    hdr.className = 'group-header';
+    hdr.textContent = GROUP_NAMES[gid] || gid;
+    list.appendChild(hdr);
+    g.forEach(s => {
     scripts[s.id] = s;
     if (!scriptModes[s.id]) {
       scriptModes[s.id] = s.modes.includes('quick') ? 'quick' : (s.modes[0] || 'full');
@@ -475,6 +496,7 @@ async function loadScripts() {
       </div>
     `;
     list.appendChild(div);
+    });
   });
 
   const anyRunning = data.some(s => s.state === 'running');
