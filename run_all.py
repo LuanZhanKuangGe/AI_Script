@@ -403,8 +403,7 @@ body {
 <script>
 const scripts = {};
 let currentScript = null;
-let pollTimers = {};
-let isRunningAll = false;
+let pollTimer = null;
 
 async function loadScripts() {
   const resp = await fetch('/api/scripts');
@@ -437,22 +436,17 @@ async function loadScripts() {
 
   const anyRunning = data.some(s => s.state === 'running');
   document.getElementById('btnStartAll').disabled = anyRunning;
-  document.getElementById('btnCancel').style.display = anyRunning ? 'block' : 'none';
-  isRunningAll = anyRunning;
+
+  if (currentScript && scripts[currentScript]) {
+    updateActions(currentScript);
+  }
 }
 
-async function selectScript(id) {
-  currentScript = id;
-  document.querySelectorAll('.script-item').forEach(el => {
-    el.classList.toggle('active', el.dataset.id === id);
-  });
+function updateActions(id) {
   const s = scripts[id];
-  document.getElementById('mainTitle').textContent = s ? s.name : 'Crawler Runner';
-  document.getElementById('emptyState').style.display = 'none';
-  document.getElementById('logArea').style.display = 'flex';
-
+  if (!s) return;
+  const state = s.state;
   const actions = document.getElementById('mainActions');
-  const state = s ? s.state : 'idle';
   let badge = '';
   if (state === 'idle') badge = '<span class="status-badge idle">Idle</span>';
   else if (state === 'running') badge = '<span class="status-badge running">&#9679; Running</span>';
@@ -468,22 +462,42 @@ async function selectScript(id) {
   }
 
   let startBtn = '';
-  if (s && s.exists && state !== 'running') {
+  if (s.exists && state !== 'running') {
     startBtn = '<button class="btn-sm btn-primary" onclick="startSingle(\'' + id + '\')">&#9654; Start</button>';
   }
   actions.innerHTML = badge + ' ' + startBtn;
+}
+
+async function selectScript(id) {
+  currentScript = id;
+  document.querySelectorAll('.script-item').forEach(el => {
+    el.classList.toggle('active', el.dataset.id === id);
+  });
+  const s = scripts[id];
+  document.getElementById('mainTitle').textContent = s ? s.name : 'Crawler Runner';
+  document.getElementById('emptyState').style.display = 'none';
+  document.getElementById('logArea').style.display = 'flex';
+
+  updateActions(id);
 
   const resp = await fetch('/api/recent_log/' + id);
   const data = await resp.json();
   const el = document.getElementById('logContent');
   el.textContent = data.lines.join('');
   if (document.getElementById('autoScroll').checked) el.scrollTop = el.scrollHeight;
-  startPolling(id);
+
+  stopPolling();
+  if (s && s.state === 'running') {
+    startPolling(id);
+  }
+}
+
+function stopPolling() {
+  if (pollTimer) { clearTimeout(pollTimer); pollTimer = null; }
 }
 
 function startPolling(id) {
-  Object.values(pollTimers).forEach(t => clearTimeout(t));
-  pollTimers = {};
+  stopPolling();
   function poll() {
     fetch('/api/log/' + id)
       .then(r => r.json())
@@ -495,12 +509,11 @@ function startPolling(id) {
         }
         if (data.done) {
           loadScripts();
-          if (currentScript === id) selectScript(id);
           return;
         }
-        pollTimers[id] = setTimeout(poll, 300);
+        pollTimer = setTimeout(poll, 300);
       })
-      .catch(() => { pollTimers[id] = setTimeout(poll, 1000); });
+      .catch(() => { pollTimer = setTimeout(poll, 1000); });
   }
   poll();
 }
@@ -512,35 +525,21 @@ async function startSingle(id) {
     body: JSON.stringify({id}),
   });
   loadScripts();
-  setTimeout(() => { if (currentScript === id) selectScript(id); }, 500);
+  if (currentScript === id) {
+    stopPolling();
+    setTimeout(() => { selectScript(id); }, 300);
+  }
 }
 
 async function startAll() {
   await fetch('/api/start_all', {method: 'POST'});
   loadScripts();
-  // Auto-select first script
-  if (SCRIPTS_DATA) {
-    const firstId = SCRIPTS_DATA[0].id;
-    selectScript(firstId);
-  }
-}
-
-async function cancelAll() {
-  await fetch('/api/cancel', {method: 'POST'});
-  loadScripts();
-}
-
-var SCRIPTS_DATA = null;
-async function init() {
-  const resp = await fetch('/api/scripts');
-  SCRIPTS_DATA = await resp.json();
-  loadScripts();
 }
 
 function clearLog() { document.getElementById('logContent').textContent = ''; }
 
-init();
-setInterval(loadScripts, 2000);
+loadScripts();
+setInterval(loadScripts, 3000);
 </script>
 </body>
 </html>"""

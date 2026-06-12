@@ -458,9 +458,8 @@ body {
 const scripts = [];
 let currentScript = null;
 let currentMode = 'quick';
-let pollTimers = {};
+let pollTimer = null;
 
-// Mode toggle
 document.querySelectorAll('.mode-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
@@ -469,7 +468,6 @@ document.querySelectorAll('.mode-btn').forEach(btn => {
   });
 });
 
-// Load scripts
 async function loadScripts() {
   const resp = await fetch('/api/scripts');
   const data = await resp.json();
@@ -491,22 +489,17 @@ async function loadScripts() {
     div.addEventListener('click', () => selectScript(s.id));
     list.appendChild(div);
   });
+
+  const anyRunning = data.some(s => s.state === 'running');
+  document.getElementById('btnStartAll').disabled = anyRunning;
+  if (currentScript && scripts[currentScript]) updateActions(currentScript);
 }
 
-async function selectScript(id) {
-  currentScript = id;
-  document.querySelectorAll('.script-item').forEach(el => {
-    el.classList.toggle('active', el.dataset.id === id);
-  });
+function updateActions(id) {
   const s = scripts[id];
-  document.getElementById('mainTitle').textContent = s ? s.name : 'Script Runner';
-
-  document.getElementById('emptyState').style.display = 'none';
-  document.getElementById('logArea').style.display = 'flex';
-
-  // Update actions
+  if (!s) return;
+  const state = s.state;
   const actions = document.getElementById('mainActions');
-  const state = s ? s.state : 'idle';
   let badge = '';
   if (state === 'idle') badge = '<span class="status-badge idle">Idle</span>';
   else if (state === 'running') badge = '<span class="status-badge running">&#9679; Running</span>';
@@ -520,12 +513,22 @@ async function selectScript(id) {
   let startBtn = '';
   if (s && s.exists && state !== 'running') {
     startBtn = `<button class="btn btn-primary" onclick="startScript('${id}')">&#9654; Start</button>`;
-  } else if (state === 'running') {
-    startBtn = '<span class="status-badge running">&#9679; Running</span>';
   }
   actions.innerHTML = badge + ' ' + startBtn;
+}
 
-  // Load log
+async function selectScript(id) {
+  currentScript = id;
+  document.querySelectorAll('.script-item').forEach(el => {
+    el.classList.toggle('active', el.dataset.id === id);
+  });
+  const s = scripts[id];
+  document.getElementById('mainTitle').textContent = s ? s.name : 'Script Runner';
+  document.getElementById('emptyState').style.display = 'none';
+  document.getElementById('logArea').style.display = 'flex';
+
+  updateActions(id);
+
   const resp = await fetch('/api/recent_log/' + id);
   const data = await resp.json();
   const el = document.getElementById('logContent');
@@ -534,37 +537,36 @@ async function selectScript(id) {
     el.scrollTop = el.scrollHeight;
   }
 
-  // Start polling
-  startPolling(id);
+  stopPolling();
+  if (s && s.state === 'running') {
+    startPolling(id);
+  }
+}
+
+function stopPolling() {
+  if (pollTimer) { clearTimeout(pollTimer); pollTimer = null; }
 }
 
 function startPolling(id) {
-  Object.values(pollTimers).forEach(t => clearTimeout(t));
-  pollTimers = {};
-
+  stopPolling();
   function poll() {
     fetch('/api/log/' + id)
       .then(r => r.json())
       .then(data => {
         const el = document.getElementById('logContent');
         if (data.lines && data.lines.length) {
-          data.lines.forEach(l => {
-            el.textContent += l;
-          });
+          data.lines.forEach(l => { el.textContent += l; });
           if (document.getElementById('autoScroll').checked) {
             el.scrollTop = el.scrollHeight;
           }
         }
         if (data.done) {
           loadScripts();
-          if (currentScript === id) selectScript(id);
           return;
         }
-        pollTimers[id] = setTimeout(poll, 300);
+        pollTimer = setTimeout(poll, 300);
       })
-      .catch(() => {
-        pollTimers[id] = setTimeout(poll, 1000);
-      });
+      .catch(() => { pollTimer = setTimeout(poll, 1000); });
   }
   poll();
 }
@@ -577,7 +579,8 @@ async function startScript(id) {
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({id: id, mode: currentMode}),
   });
-  if (currentScript === id) selectScript(id);
+  stopPolling();
+  setTimeout(() => { if (currentScript === id) selectScript(id); }, 300);
   loadScripts();
 }
 
@@ -588,15 +591,14 @@ document.getElementById('btnStartAll').addEventListener('click', async () => {
     body: JSON.stringify({mode: currentMode}),
   });
   loadScripts();
-  if (currentScript) selectScript(currentScript);
 });
 
 function clearLog() {
   document.getElementById('logContent').textContent = '';
 }
 
-// Init
 loadScripts();
+setInterval(loadScripts, 3000);
 </script>
 </body>
 </html>"""
