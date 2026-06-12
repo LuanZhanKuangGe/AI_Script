@@ -25,64 +25,13 @@ app = Flask(__name__)
 
 script_state = {}
 script_queues = {}
-current_order = []
-running_lock = threading.Lock()
-cancel_flag = False
 
 
 def get_log_path(script_id):
     return LOG_DIR / f"{script_id}.log"
 
 
-def run_sequence(mode="default"):
-    global cancel_flag
-    cancel_flag = False
-    current_order.clear()
-    for s in SCRIPTS:
-        current_order.append(s["id"])
-
-    for s in SCRIPTS:
-        if cancel_flag:
-            script_state[s["id"]] = "cancelled"
-            continue
-        script_path = ROOT_PATH / s["path"]
-        if not script_path.exists():
-            script_state[s["id"]] = "error:not_found"
-            continue
-
-        q = Queue()
-        script_queues[s["id"]] = q
-        script_state[s["id"]] = "running"
-
-        log_file = get_log_path(s["id"])
-        with open(log_file, "a", encoding="utf-8") as lf:
-            lf.write(f"\n--- {datetime.now():%H:%M:%S} START ---\n")
-            env = {**os.environ, "PYTHONUNBUFFERED": "1", "PYTHONIOENCODING": "utf-8"}
-            proc = subprocess.Popen(
-                [sys.executable, str(script_path)],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                bufsize=1,
-                text=True,
-                encoding="utf-8",
-                errors="replace",
-                env=env,
-            )
-            for line in iter(proc.stdout.readline, ""):
-                lf.write(line)
-                lf.flush()
-                q.put(line)
-            proc.wait()
-            lf.write(f"--- {datetime.now():%H:%M:%S} EXIT code={proc.returncode} ---\n")
-            q.put(None)
-
-        rc = proc.returncode
-        script_state[s["id"]] = f"done:{rc}"
-        if rc != 0:
-            break
-
-
-def run_single(script_id):
+def run_script(script_id):
     info = next((s for s in SCRIPTS if s["id"] == script_id), None)
     if not info:
         return
@@ -96,7 +45,7 @@ def run_single(script_id):
     script_state[script_id] = "running"
 
     log_file = get_log_path(script_id)
-    with open(log_file, "w", encoding="utf-8") as lf:
+    with open(log_file, "a", encoding="utf-8") as lf:
         lf.write(f"\n--- {datetime.now():%H:%M:%S} START ---\n")
         env = {**os.environ, "PYTHONUNBUFFERED": "1", "PYTHONIOENCODING": "utf-8"}
         proc = subprocess.Popen(
@@ -144,8 +93,14 @@ def api_scripts():
 def api_start_all():
     if any(script_state.get(s["id"]) == "running" for s in SCRIPTS):
         return json.dumps({"error": "already running"}), 400
-    t = threading.Thread(target=run_sequence, daemon=True)
-    t.start()
+    for s in SCRIPTS:
+        script_path = ROOT_PATH / s["path"]
+        if not script_path.exists():
+            continue
+        if script_state.get(s["id"]) == "running":
+            continue
+        t = threading.Thread(target=run_script, args=(s["id"],), daemon=True)
+        t.start()
     return json.dumps({"ok": True})
 
 
@@ -155,15 +110,13 @@ def api_start():
     script_id = data.get("id")
     if script_state.get(script_id) == "running":
         return json.dumps({"error": "already running"}), 400
-    t = threading.Thread(target=run_single, args=(script_id,), daemon=True)
+    t = threading.Thread(target=run_script, args=(script_id,), daemon=True)
     t.start()
     return json.dumps({"ok": True})
 
 
 @app.route("/api/cancel", methods=["POST"])
 def api_cancel():
-    global cancel_flag
-    cancel_flag = True
     return json.dumps({"ok": True})
 
 
@@ -420,8 +373,7 @@ body {
     <div class="sidebar-header">&#9654; Crawler Runner</div>
     <div class="script-list" id="scriptList"></div>
     <div class="bottom-bar">
-      <button class="btn btn-start-all" id="btnStartAll" onclick="startAll()">&#9654; Run All (Sequential)</button>
-      <button class="btn btn-cancel" id="btnCancel" onclick="cancelAll()" style="display:none;">&#10005; Cancel</button>
+      <button class="btn btn-start-all" id="btnStartAll" onclick="startAll()">&#9654; Run All</button>
     </div>
   </div>
   <div class="main">
