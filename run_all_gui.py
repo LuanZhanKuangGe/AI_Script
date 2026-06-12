@@ -249,9 +249,8 @@ body {
 .script-item .status-dot.done\:2 { background: var(--red); }
 .script-item .status-dot.error { background: var(--red); }
 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
-.script-item .info { flex: 1; min-width: 0; }
-.script-item .name { font-size: 13px; font-weight: 600; }
-.script-item .row2 { display: flex; align-items: center; gap: 6px; margin-top: 2px; }
+.script-item .info { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; }
+.script-item .name { font-size: 13px; font-weight: 600; white-space: nowrap; }
 
 .mode-toggle-sm {
   display: inline-flex;
@@ -259,6 +258,7 @@ body {
   border-radius: 6px;
   overflow: hidden;
   border: 1px solid var(--border);
+  flex-shrink: 0;
 }
 .mode-toggle-sm .mb {
   padding: 2px 8px;
@@ -272,13 +272,6 @@ body {
 }
 .mode-toggle-sm .mb.active { background: var(--accent); color: #fff; }
 .mode-toggle-sm .mb:hover:not(.active) { color: var(--text); }
-.mode-tag-sm {
-  font-size: 10px;
-  color: var(--text2);
-  background: var(--surface2);
-  padding: 2px 8px;
-  border-radius: 4px;
-}
 
 .bottom-bar {
   padding: 16px;
@@ -471,8 +464,6 @@ async function loadScripts() {
       modeHtml = `<div class="mode-toggle-sm" onclick="event.stopPropagation()">` +
         s.modes.map(m => `<button class="mb${scriptModes[s.id]===m?' active':''}" data-id="${s.id}" data-mode="${m}" onclick="setMode('${s.id}','${m}')">${m.charAt(0).toUpperCase()+m.slice(1)}</button>`).join('') +
         `</div>`;
-    } else if (s.modes.length === 1) {
-      modeHtml = `<span class="mode-tag-sm">${s.modes[0]}</span>`;
     }
 
     div.innerHTML = `
@@ -480,7 +471,7 @@ async function loadScripts() {
       <div class="status-dot ${s.state.replace(':','\\:')}"></div>
       <div class="info" onclick="selectScript('${s.id}')">
         <div class="name">${s.name}${stateIcon}</div>
-        <div class="row2">${modeHtml}</div>
+        ${modeHtml}
       </div>
     `;
     list.appendChild(div);
