@@ -180,10 +180,8 @@ def scan_full(jav_path: Path) -> None:
 
     sorted_folders = sorted(folder_stats.items(), key=lambda x: x[1], reverse=True)
     print(f"  {len(sorted_folders)} series, {sum(folder_stats.values())} nfo total")
-    for i, (name, cnt) in enumerate(sorted_folders[:20], 1):
-        print(f"    {i:2d}. {name:<40} {cnt:>5d}")
-    if len(sorted_folders) > 20:
-        print(f"    ... and {len(sorted_folders) - 20} more")
+    for i, (name, cnt) in enumerate(sorted_folders, 1):
+        print(f"    {i:3d}. {name:<40} {cnt:>5d}")
 
     if missing_images:
         print(f"  missing fanart/poster ({len(missing_images)}):")
