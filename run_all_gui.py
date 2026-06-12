@@ -113,8 +113,12 @@ def api_start():
 
 @app.route("/api/start_all", methods=["POST"])
 def api_start_all():
-    mode = request.get_json().get("mode", "quick")
+    data = request.get_json()
+    mode = data.get("mode", "quick")
+    ids = data.get("ids")
     for s in SCRIPTS:
+        if ids and s["id"] not in ids:
+            continue
         if not Path(s["path"]).exists():
             continue
         if script_state.get(s["id"]) == "running":
@@ -234,14 +238,6 @@ body {
 .mode-btn.active { background: var(--accent); color: #fff; }
 .mode-btn:hover:not(.active) { color: var(--text); }
 
-.section-label {
-  padding: 12px 16px 4px;
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--text2);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
 .script-list { flex: 1; overflow-y: auto; padding: 4px 8px; }
 .script-item {
   display: flex;
@@ -255,6 +251,12 @@ body {
 }
 .script-item:hover { background: var(--surface2); }
 .script-item.active { background: var(--surface2); border: 1px solid var(--accent); }
+.script-item input[type="checkbox"] {
+  accent-color: var(--accent);
+  width: 16px; height: 16px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
 .script-item .status-dot {
   width: 8px; height: 8px; border-radius: 50%;
   background: var(--text2);
@@ -264,17 +266,31 @@ body {
 .script-item .status-dot.running { background: var(--yellow); animation: pulse 1.5s infinite; }
 .script-item .status-dot.done\:0 { background: var(--green); }
 .script-item .status-dot.done { background: var(--green); }
-.script-item .status-dot.done\:nonzero { background: var(--red); }
+.script-item .status-dot.done\:1 { background: var(--red); }
+.script-item .status-dot.done\:2 { background: var(--red); }
 .script-item .status-dot.error { background: var(--red); }
 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
 .script-item .info { flex: 1; min-width: 0; }
 .script-item .name { font-size: 13px; font-weight: 600; }
-.script-item .path { font-size: 10px; color: var(--text2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.script-item .modes-tag { font-size: 10px; color: var(--text2); }
 
 .bottom-bar {
   padding: 16px;
   border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
+.select-all-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text2);
+  cursor: pointer;
+  user-select: none;
+}
+.select-all-row input { accent-color: var(--accent); width: 16px; height: 16px; cursor: pointer; }
 .btn-start-all {
   width: 100%;
   padding: 10px;
@@ -301,19 +317,6 @@ body {
 }
 .main-header .title { font-size: 20px; font-weight: 700; }
 .main-header .actions { display: flex; gap: 8px; align-items: center; }
-
-.btn-sm {
-  padding: 6px 16px;
-  border: none;
-  border-radius: 8px;
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-.btn-primary { background: var(--accent); color: #fff; }
-.btn-primary:hover { background: var(--accent2); }
-.btn-primary:disabled { opacity: 0.4; cursor: default; }
 
 .log-area {
   flex: 1;
@@ -397,10 +400,12 @@ body {
         <button class="mode-btn" data-mode="full">Full</button>
       </div>
     </div>
-    <div class="section-label">Iwara &amp; Video Crawlers</div>
     <div class="script-list" id="scriptList"></div>
     <div class="bottom-bar">
-      <button class="btn-start-all" id="btnStartAll">&#9654; Start All</button>
+      <label class="select-all-row">
+        <input type="checkbox" id="selectAll" checked> Select All
+      </label>
+      <button class="btn-start-all" id="btnStartAll">&#9654; Start Selected</button>
     </div>
   </div>
   <div class="main">
@@ -441,11 +446,20 @@ document.querySelectorAll('.mode-btn').forEach(btn => {
   });
 });
 
+document.getElementById('selectAll').addEventListener('change', function() {
+  const checked = this.checked;
+  document.querySelectorAll('.script-check').forEach(cb => { cb.checked = checked; });
+});
+
 async function loadScripts() {
   const resp = await fetch('/api/scripts');
   const data = await resp.json();
   const list = document.getElementById('scriptList');
   const activeId = currentScript;
+  const selAll = document.getElementById('selectAll');
+  const prevChecks = {};
+  document.querySelectorAll('.script-check').forEach(cb => { prevChecks[cb.dataset.id] = cb.checked; });
+
   list.innerHTML = '';
   data.forEach(s => {
     scripts[s.id] = s;
@@ -456,14 +470,15 @@ async function loadScripts() {
     if (s.state.startsWith('done:')) {
       stateIcon = s.state === 'done:0' ? ' &#10003;' : ' &#10007;';
     }
+    const wasChecked = prevChecks[s.id] !== undefined ? prevChecks[s.id] : selAll.checked;
     div.innerHTML = `
+      <input type="checkbox" class="script-check" data-id="${s.id}" ${wasChecked ? 'checked' : ''} onclick="event.stopPropagation()">
       <div class="status-dot ${s.state.replace(':','\\:')}"></div>
-      <div class="info">
+      <div class="info" onclick="selectScript('${s.id}')">
         <div class="name">${s.name}${stateIcon}</div>
-        <div class="path">${s.modes.length ? s.modes.join('/') : '&mdash;'}</div>
+        <div class="modes-tag">${s.modes.length ? s.modes.join('/') : '&mdash;'}</div>
       </div>
     `;
-    div.addEventListener('click', () => selectScript(s.id));
     list.appendChild(div);
   });
 
@@ -488,11 +503,7 @@ function updateActions(id) {
   } else if (state === 'error:not_found') {
     badge = '<span class="status-badge error">Not Found</span>';
   }
-  let startBtn = '';
-  if (s.exists && state !== 'running') {
-    startBtn = `<button class="btn-sm btn-primary" onclick="startScript('${id}')">&#9654; Start</button>`;
-  }
-  actions.innerHTML = badge + ' ' + startBtn;
+  actions.innerHTML = badge;
 }
 
 async function selectScript(id) {
@@ -508,9 +519,9 @@ async function selectScript(id) {
   updateActions(id);
 
   const resp = await fetch('/api/recent_log/' + id);
-  const data = await resp.json();
+  const rdata = await resp.json();
   const el = document.getElementById('logContent');
-  el.textContent = data.lines.join('');
+  el.textContent = rdata.lines.join('');
   if (document.getElementById('autoScroll').checked) el.scrollTop = el.scrollHeight;
 
   stopPolling();
@@ -540,23 +551,16 @@ function startPolling(id) {
   poll();
 }
 
-async function startScript(id) {
-  const mode = scripts[id]?.modes?.length ? currentMode : null;
-  await fetch('/api/start', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({id, mode}),
-  });
-  stopPolling();
-  setTimeout(() => { if (currentScript === id) selectScript(id); }, 300);
-  loadScripts();
-}
-
 document.getElementById('btnStartAll').addEventListener('click', async () => {
+  const selected = [];
+  document.querySelectorAll('.script-check:checked').forEach(cb => {
+    selected.push(cb.dataset.id);
+  });
+  if (selected.length === 0) return;
   await fetch('/api/start_all', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({mode: currentMode}),
+    body: JSON.stringify({mode: currentMode, ids: selected}),
   });
   loadScripts();
 });
