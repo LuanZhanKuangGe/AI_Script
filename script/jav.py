@@ -26,15 +26,15 @@ def normalize_jav_id(raw_id: str) -> str:
 def collect_ids(path: Path, pattern: str, label: str, processor) -> set:
     ids = set()
     if not path.exists():
-        print(f"  [{label}] 路径不存在: {path}")
+        print(f"  {label}: skip ({path} not found)")
         return ids
     files = list(path.rglob(pattern))
-    print(f"  [{label}] 扫描 {len(files)} 个文件")
+    print(f"  {label}: {len(files)} files")
     for i, f in enumerate(files, 1):
-        if i % 500 == 0 or i == len(files):
-            print(f"  [{label}] {i}/{len(files)}")
+        if i % 1000 == 0 or i == len(files):
+            print(f"  {label}: {i}/{len(files)}")
         ids |= processor(f)
-    print(f"  [{label}] 完成, {len(ids)} 个ID")
+    print(f"  {label}: {len(ids)} IDs collected")
     return ids
 
 
@@ -66,10 +66,8 @@ PROCESSORS = [jav_processor, fc2_processor, tokyo_hot_processor, vr_processor]
 
 
 def scan_quick(jav_path: Path) -> None:
-    print("=== quick mode: 只更新 jav_id ===")
-    all_ids = set()
-
-    all_ids |= collect_ids(jav_path, "*.nfo", "JAV", jav_processor)
+    print(f"[JAV] quick mode start")
+    all_ids = collect_ids(jav_path, "*.nfo", "JAV", jav_processor)
     for path, pattern, label, proc in zip(
         [p for p, _, _ in OTHER_PATHS],
         [p for _, p, _ in OTHER_PATHS],
@@ -80,17 +78,17 @@ def scan_quick(jav_path: Path) -> None:
 
     data = {"jav_id": sorted(all_ids)}
     DATA_FILE.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
-    print(f"\n保存 {len(all_ids)} 个ID到 {DATA_FILE}")
+    print(f"[JAV] quick done: {len(all_ids)} IDs -> {DATA_FILE.name}")
 
 
 def scan_full(jav_path: Path) -> None:
-    print("=== full mode: 完整扫描 ===")
+    print(f"[JAV] full mode start")
 
     if not jav_path.exists():
-        print(f"路径不存在: {jav_path}")
+        print(f"[JAV] path not found: {jav_path}")
         return
 
-    print("[1/5] 检查文件夹...")
+    print("[1/5] scanning folders")
     empty_folders = []
     short_names = []
     for folder in jav_path.iterdir():
@@ -98,18 +96,19 @@ def scan_full(jav_path: Path) -> None:
             empty_folders.append(str(folder))
         if len(folder.name.split()) < 2:
             short_names.append(str(folder))
+    print(f"[1/5] {len(empty_folders)} empty, {len(short_names)} short-named folders")
 
-    print("[2/5] 扫描 JAV nfo...")
+    print("[2/5] scanning JAV nfo")
     jav_id = set()
     folder_dict = {}
     actor_count = {}
     missing_images = []
 
     nfo_files = list(jav_path.rglob("*.nfo"))
-    print(f"  共 {len(nfo_files)} 个nfo文件")
+    print(f"  {len(nfo_files)} nfo files found")
     for i, nfo in enumerate(nfo_files, 1):
-        if i % 500 == 0 or i == len(nfo_files):
-            print(f"  处理 {i}/{len(nfo_files)}")
+        if i % 1000 == 0 or i == len(nfo_files):
+            print(f"  {i}/{len(nfo_files)}")
         vid = normalize_jav_id(nfo.stem)
         jav_id.add(vid)
         serial_id = nfo.stem.split("-")[0]
@@ -130,8 +129,9 @@ def scan_full(jav_path: Path) -> None:
                     actor_count[name] = actor_count.get(name, 0) + 1
         except Exception:
             pass
+    print(f"  {len(jav_id)} IDs, {len(missing_images)} missing images")
 
-    print("[3/5] 扫描其他目录...")
+    print("[3/5] scanning other dirs")
     for path, pattern, label, proc in zip(
         [p for p, _, _ in OTHER_PATHS],
         [p for _, p, _ in OTHER_PATHS],
@@ -140,24 +140,24 @@ def scan_full(jav_path: Path) -> None:
     ):
         jav_id |= collect_ids(path, pattern, label, proc)
 
-    print("[4/5] 保存数据库...")
+    print("[4/5] saving database")
     database = {
         "jav_id": list(jav_id),
         "jav_folder": folder_dict,
         "actor_count": actor_count,
     }
     DATA_FILE.write_text(json.dumps(database, ensure_ascii=False, indent=2), encoding="utf-8")
-    print(f"  保存 {len(jav_id)} 个ID, {len(folder_dict)} 个系列, {len(actor_count)} 个演员")
+    print(f"  {len(jav_id)} IDs, {len(folder_dict)} series, {len(actor_count)} actors -> {DATA_FILE.name}")
 
-    print("[5/5] 统计...")
+    print("[5/5] statistics")
     if empty_folders:
-        print(f"\n空文件夹: {len(empty_folders)} 个")
+        print(f"  empty folders ({len(empty_folders)}):")
         for f in empty_folders:
-            print(f"  {f}")
+            print(f"    {f}")
     if short_names:
-        print(f"\n文件夹名缺少空格: {len(short_names)} 个")
+        print(f"  short-named ({len(short_names)}):")
         for f in short_names:
-            print(f"  {f}")
+            print(f"    {f}")
 
     folder_stats = defaultdict(int)
     for folder in jav_path.iterdir():
@@ -167,22 +167,22 @@ def scan_full(jav_path: Path) -> None:
                 folder_stats[folder.name.split(" ")[0]] += nfo_count
 
     sorted_folders = sorted(folder_stats.items(), key=lambda x: x[1], reverse=True)
-    print(f"\n总共发现 {len(sorted_folders)} 个文件夹")
-    print(f"总共包含 {sum(folder_stats.values())} 个nfo文件")
-    print("-" * 60)
-    for i, (name, cnt) in enumerate(sorted_folders, 1):
-        print(f"{i:3d}. {name:<40} {cnt:>5d} 个文件")
+    print(f"  {len(sorted_folders)} series, {sum(folder_stats.values())} nfo total")
+    for i, (name, cnt) in enumerate(sorted_folders[:20], 1):
+        print(f"    {i:2d}. {name:<40} {cnt:>5d}")
+    if len(sorted_folders) > 20:
+        print(f"    ... and {len(sorted_folders) - 20} more")
 
     if missing_images:
-        print(f"\n缺少 fanart/poster 的 nfo: {len(missing_images)} 个")
+        print(f"  missing fanart/poster ({len(missing_images)}):")
         for vid in missing_images:
-            print(vid)
+            print(f"    {vid}")
 
-    print("\n完成!")
+    print(f"[JAV] full done")
 
 
 if __name__ == "__main__":
-    print(f"mode: {MODE}")
+    print(f"[JAV] mode={MODE}")
     if MODE == "quick":
         scan_quick(JAV)
     else:
