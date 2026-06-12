@@ -14,6 +14,7 @@ SCRIPTS = [
     {"id": "fyppt",        "name": "FYPPT",           "path": "fyppt.py"},
     {"id": "reddclips",    "name": "ReddClips",       "path": "reddclips.py"},
     {"id": "reelsmunkey",  "name": "ReelsMunkey",     "path": "reelsmunkey.py"},
+    {"id": "rule34",       "name": "Rule34",           "path": "rule34.py"},
 ]
 
 LOG_DIR = Path(__file__).parent / "logs"
