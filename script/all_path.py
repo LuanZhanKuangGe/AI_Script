@@ -38,6 +38,7 @@ PORN_CN_LUOWU = _make_path(r"D:\Hentai-Dance", "/data/Hentai-Dance")
 # Porn-CN-Short
 PORN_CN_SHORT_XIAOPYIXIA1 = _make_path(r"D:\Hentai-AI\xiaoPyixia1", "/data/Hentai-AI/xiaoPyixia1")
 PORN_CN_SHORT_MISTRALAIAI = _make_path(r"D:\Hentai-AI\Mistralaiai", "/data/Hentai-AI/Mistralaiai")
+PORN_CN_SHORT_QINGQINGCAOYUAN = _make_path(r"D:\Hentai-AI\QingQingCaoYuan", "/data/Hentai-AI/QingQingCaoYuan")
 
 # Porn-VR
 PORN_VR = _make_path(r"D:\Porn-VR", "/data/Porn-VR")
@@ -58,6 +59,7 @@ _ALL_PATHS = {
     "PORN_CN_LUOWU": PORN_CN_LUOWU,
     "PORN_CN_SHORT_XIAOPYIXIA1": PORN_CN_SHORT_XIAOPYIXIA1,
     "PORN_CN_SHORT_MISTRALAIAI": PORN_CN_SHORT_MISTRALAIAI,
+    "PORN_CN_SHORT_QINGQINGCAOYUAN": PORN_CN_SHORT_QINGQINGCAOYUAN,
     "PORN_VR": PORN_VR,
 }
 
