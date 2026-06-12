@@ -8,6 +8,17 @@ from all_path import JAV, make_data_path
 MODE = sys.argv[1] if len(sys.argv) > 1 and sys.argv[1] in ("quick", "full") else "quick"
 
 DATA_FILE = Path(__file__).parent / "data-jav.json"
+DATA_FILE_REMOTE = Path(r"\\Z4PRO-4B98\nvme13-133XXXX8510\docker\qinglong\scripts\data-jav.json")
+
+
+def save_data(data: dict) -> None:
+    content = json.dumps(data, ensure_ascii=False, indent=2)
+    DATA_FILE.write_text(content, encoding="utf-8")
+    try:
+        DATA_FILE_REMOTE.write_text(content, encoding="utf-8")
+        print(f"  saved -> {DATA_FILE.name} + remote")
+    except Exception:
+        print(f"  saved -> {DATA_FILE.name} (remote failed)")
 
 OTHER_PATHS = [
     (make_data_path("JAV-Other/FC2"), "*.mp4", "FC2"),
@@ -76,9 +87,8 @@ def scan_quick(jav_path: Path) -> None:
     ):
         all_ids |= collect_ids(path, pattern, label, proc)
 
-    data = {"jav_id": sorted(all_ids)}
-    DATA_FILE.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
-    print(f"[JAV] quick done: {len(all_ids)} IDs -> {DATA_FILE.name}")
+    save_data({"jav_id": sorted(all_ids)})
+    print(f"[JAV] quick done: {len(all_ids)} IDs")
 
 
 def scan_full(jav_path: Path) -> None:
@@ -146,8 +156,8 @@ def scan_full(jav_path: Path) -> None:
         "jav_folder": folder_dict,
         "actor_count": actor_count,
     }
-    DATA_FILE.write_text(json.dumps(database, ensure_ascii=False, indent=2), encoding="utf-8")
-    print(f"  {len(jav_id)} IDs, {len(folder_dict)} series, {len(actor_count)} actors -> {DATA_FILE.name}")
+    save_data(database)
+    print(f"  {len(jav_id)} IDs, {len(folder_dict)} series, {len(actor_count)} actors")
 
     print("[5/5] statistics")
     if empty_folders:
