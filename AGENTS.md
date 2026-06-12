@@ -12,11 +12,6 @@
 - 提交信息简洁明了，说明做了什么修改
 - 不主动创建新文件，除非用户明确要求
 
-## 文件同步规则
-
-- `script/` 文件夹中的脚本每次修改后，自动复制到 `\\Z4PRO-4B98\nvme13-133XXXX8510\docker\qinglong\scripts`
-- 复制使用相对路径，保持目录结构
-
 ## Linting & Typecheck
 
 - 修改代码后必须运行 lint 和 typecheck 命令
