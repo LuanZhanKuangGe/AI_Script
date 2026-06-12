@@ -249,7 +249,7 @@ body {
 .script-item .status-dot.done\:2 { background: var(--red); }
 .script-item .status-dot.error { background: var(--red); }
 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
-.script-item .info { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; }
+.script-item .info { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .script-item .name { font-size: 13px; font-weight: 600; white-space: nowrap; }
 
 .mode-toggle-sm {
