@@ -22,9 +22,9 @@ def save_data(data: dict) -> None:
     DATA_FILE.write_text(content, encoding="utf-8")
     try:
         DATA_FILE_REMOTE.write_text(content, encoding="utf-8")
-        print(f"  saved -> {DATA_FILE.name} + remote")
+        print(f"  已保存 -> {DATA_FILE.name} + 远程")
     except Exception:
-        print(f"  saved -> {DATA_FILE.name} (remote failed)")
+        print(f"  已保存 -> {DATA_FILE.name} (远程失败)")
 
 
 def normalize_jav_id(raw_id: str) -> str:
@@ -37,18 +37,18 @@ def normalize_jav_id(raw_id: str) -> str:
 def collect_ids(path: Path, pattern: str, label: str, processor) -> set:
     ids = set()
     if not path.exists():
-        print(f"  {label}: skip (path not found)")
+        print(f"  {label}：跳过 (路径不存在)")
         return ids
     files = list(path.rglob(pattern))
     if not files:
-        print(f"  {label}: 0 files")
+        print(f"  {label}：0 个文件")
         return ids
-    print(f"  {label}: scanning {len(files)} files...")
+    print(f"  {label}：扫描 {len(files)} 个文件...")
     for i, f in enumerate(files, 1):
         if i % 500 == 0 or i == len(files):
-            print(f"  {label}: {i}/{len(files)} ({len(ids)} IDs)")
+            print(f"  {label}：{i}/{len(files)} ({len(ids)} 个ID)")
         ids |= processor(f)
-    print(f"  {label}: done, {len(ids)} IDs")
+    print(f"  {label}：完成，{len(ids)} 个ID")
     return ids
 
 
@@ -79,13 +79,13 @@ def vr_processor(f: Path) -> set:
 PROCESSORS = [jav_processor, fc2_processor, tokyo_hot_processor, vr_processor]
 
 
-def print_stats(jav_path: Path, empty_folders, short_names, missing_images):
+def print_stats(jav_path: Path, empty_folders, short_names, missing_images=None):
     if empty_folders:
-        print(f"  empty folders ({len(empty_folders)}):")
+        print(f"  空文件夹 ({len(empty_folders)} 个)：")
         for f in empty_folders:
             print(f"    {f}")
     if short_names:
-        print(f"  short-named ({len(short_names)}):")
+        print(f"  名称缺少空格 ({len(short_names)} 个)：")
         for f in short_names:
             print(f"    {f}")
 
@@ -97,24 +97,24 @@ def print_stats(jav_path: Path, empty_folders, short_names, missing_images):
                 folder_stats[folder.name.split(" ")[0]] += nfo_count
 
     sorted_folders = sorted(folder_stats.items(), key=lambda x: x[1], reverse=True)
-    print(f"  {len(sorted_folders)} series, {sum(folder_stats.values())} nfo total")
+    print(f"  {len(sorted_folders)} 个系列，{sum(folder_stats.values())} 个nfo")
     for i, (name, cnt) in enumerate(sorted_folders, 1):
         print(f"    {i:3d}. {name:<40} {cnt:>5d}")
 
     if missing_images:
-        print(f"  missing fanart/poster ({len(missing_images)}):")
+        print(f"  缺少 fanart/poster ({len(missing_images)} 个)：")
         for vid in missing_images:
             print(f"    {vid}")
 
 
 def scan_quick(jav_path: Path) -> None:
-    print("[JAV] quick mode start")
+    print("[JAV] 快速模式启动")
 
     if not jav_path.exists():
-        print(f"[JAV] path not found: {jav_path}")
+        print(f"[JAV] 路径不存在：{jav_path}")
         return
 
-    print("[1/6] scanning folders")
+    print("[1/5] 检查文件夹")
     empty_folders = []
     short_names = []
     for folder in jav_path.iterdir():
@@ -122,44 +122,43 @@ def scan_quick(jav_path: Path) -> None:
             empty_folders.append(str(folder))
         if len(folder.name.split()) < 2:
             short_names.append(str(folder))
-    print(f"[1/6] {len(empty_folders)} empty, {len(short_names)} short-named folders")
+    print(f"[1/5] {len(empty_folders)} 个空文件夹，{len(short_names)} 个名称缺少空格")
 
-    print("[2/6] scanning JAV nfo")
-    all_ids = set()
-    missing_images = []
+    print("[2/5] 扫描 JAV nfo (仅文件名)")
+    jav_id = set()
+    folder_dict = {}
     nfo_files = list(jav_path.rglob("*.nfo"))
-    print(f"  {len(nfo_files)} nfo files found")
+    print(f"  共 {len(nfo_files)} 个nfo文件")
     for i, nfo in enumerate(nfo_files, 1):
         if i % 1000 == 0 or i == len(nfo_files):
             print(f"  {i}/{len(nfo_files)}")
         vid = normalize_jav_id(nfo.stem)
-        all_ids.add(vid)
-        fanart = nfo.parent / f"{nfo.stem}-fanart.jpg"
-        poster = nfo.parent / f"{nfo.stem}-poster.jpg"
-        if not fanart.exists() or not poster.exists():
-            missing_images.append(vid)
+        jav_id.add(vid)
+        serial_id = nfo.stem.split("-")[0]
+        if serial_id not in folder_dict:
+            folder_dict[serial_id] = nfo.parent.name
+    print(f"  {len(jav_id)} 个ID，{len(folder_dict)} 个系列")
 
-    print("[3/6] scanning FC2")
-    all_ids |= collect_ids(OTHER_PATHS[0][0], OTHER_PATHS[0][1], "FC2", fc2_processor)
-    print("[4/6] scanning 東京熱")
-    all_ids |= collect_ids(OTHER_PATHS[1][0], OTHER_PATHS[1][1], "東京熱", tokyo_hot_processor)
-    print("[5/6] scanning JAV-VR")
-    all_ids |= collect_ids(OTHER_PATHS[2][0], OTHER_PATHS[2][1], "JAV-VR", vr_processor)
+    print("[3/5] 扫描 FC2")
+    jav_id |= collect_ids(OTHER_PATHS[0][0], OTHER_PATHS[0][1], "FC2", fc2_processor)
+    print("[4/5] 扫描 東京熱")
+    jav_id |= collect_ids(OTHER_PATHS[1][0], OTHER_PATHS[1][1], "東京熱", tokyo_hot_processor)
 
-    print("[6/6] saving")
-    save_data({"jav_id": sorted(all_ids)})
-    print_stats(jav_path, empty_folders, short_names, missing_images)
-    print("[JAV] quick done")
+    print("[5/5] 保存数据")
+    save_data({"jav_id": list(jav_id), "jav_folder": folder_dict})
+    print(f"  {len(jav_id)} 个ID，{len(folder_dict)} 个系列")
+    print_stats(jav_path, empty_folders, short_names)
+    print("[JAV] 快速模式完成")
 
 
 def scan_full(jav_path: Path) -> None:
-    print("[JAV] full mode start")
+    print("[JAV] 完整模式启动")
 
     if not jav_path.exists():
-        print(f"[JAV] path not found: {jav_path}")
+        print(f"[JAV] 路径不存在：{jav_path}")
         return
 
-    print("[1/6] scanning folders")
+    print("[1/6] 检查文件夹")
     empty_folders = []
     short_names = []
     for folder in jav_path.iterdir():
@@ -167,16 +166,16 @@ def scan_full(jav_path: Path) -> None:
             empty_folders.append(str(folder))
         if len(folder.name.split()) < 2:
             short_names.append(str(folder))
-    print(f"[1/6] {len(empty_folders)} empty, {len(short_names)} short-named folders")
+    print(f"[1/6] {len(empty_folders)} 个空文件夹，{len(short_names)} 个名称缺少空格")
 
-    print("[2/6] scanning JAV nfo")
+    print("[2/6] 扫描 JAV nfo (含文件内容)")
     jav_id = set()
     folder_dict = {}
     actor_count = {}
     missing_images = []
 
     nfo_files = list(jav_path.rglob("*.nfo"))
-    print(f"  {len(nfo_files)} nfo files found")
+    print(f"  共 {len(nfo_files)} 个nfo文件")
     for i, nfo in enumerate(nfo_files, 1):
         if i % 1000 == 0 or i == len(nfo_files):
             print(f"  {i}/{len(nfo_files)}")
@@ -200,29 +199,29 @@ def scan_full(jav_path: Path) -> None:
                     actor_count[name] = actor_count.get(name, 0) + 1
         except Exception:
             pass
-    print(f"  {len(jav_id)} IDs, {len(missing_images)} missing images")
+    print(f"  {len(jav_id)} 个ID，{len(missing_images)} 个缺少图片")
 
-    print("[3/6] scanning FC2")
+    print("[3/6] 扫描 FC2")
     jav_id |= collect_ids(OTHER_PATHS[0][0], OTHER_PATHS[0][1], "FC2", fc2_processor)
-    print("[4/6] scanning 東京熱")
+    print("[4/6] 扫描 東京熱")
     jav_id |= collect_ids(OTHER_PATHS[1][0], OTHER_PATHS[1][1], "東京熱", tokyo_hot_processor)
-    print("[5/6] scanning JAV-VR")
+    print("[5/6] 扫描 JAV-VR")
     jav_id |= collect_ids(OTHER_PATHS[2][0], OTHER_PATHS[2][1], "JAV-VR", vr_processor)
 
-    print("[6/6] saving database")
+    print("[6/6] 保存数据库")
     database = {
         "jav_id": list(jav_id),
         "jav_folder": folder_dict,
         "actor_count": actor_count,
     }
     save_data(database)
-    print(f"  {len(jav_id)} IDs, {len(folder_dict)} series, {len(actor_count)} actors")
+    print(f"  {len(jav_id)} 个ID，{len(folder_dict)} 个系列，{len(actor_count)} 个演员")
     print_stats(jav_path, empty_folders, short_names, missing_images)
-    print("[JAV] full done")
+    print("[JAV] 完整模式完成")
 
 
 if __name__ == "__main__":
-    print(f"[JAV] mode={MODE}")
+    print(f"[JAV] 模式={MODE}")
     if MODE == "quick":
         scan_quick(JAV)
     else:
