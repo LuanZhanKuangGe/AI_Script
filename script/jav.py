@@ -1,85 +1,94 @@
 import json
-from tqdm import tqdm
+import re
+import sys
 from pathlib import Path
 from collections import defaultdict
+from tqdm import tqdm
 from all_path import JAV, make_data_path
 
+MODE = sys.argv[1] if len(sys.argv) > 1 and sys.argv[1] in ("quick", "full") else "quick"
 
-def get_base_path():
-    return JAV
+DATA_FILE = Path(__file__).parent / "data-jav.json"
 
-
-def get_other_path(name: str) -> Path:
-    return make_data_path(name)
-
-
-def scan_videos(target: Path, pattern: str, desc: str, processor=None) -> list:
-    if not target.exists():
-        print(f"路径不存在: {target}")
-        return []
-    videos = list(target.rglob(pattern))
-    results = []
-    for video in tqdm(videos, desc=desc):
-        if processor:
-            result = processor(video)
-            if result:
-                results.extend(result)
-    return results
+OTHER_PATHS = [
+    (make_data_path("JAV-Other/FC2"), "*.mp4", "update FC2"),
+    (make_data_path("JAV-Other/東京熱"), "*.nfo", "update other"),
+    (make_data_path("JAV-VR"), "*.nfo", "update JAV-VR"),
+]
 
 
-def process_nfo(video: Path, formats: list = None) -> list:
-    video_id = video.stem.split(" ")[0].upper()
-    if video_id.endswith('z'):
-        video_id = video_id[:-1]
-    return [video_id]
+def normalize_jav_id(raw_id: str) -> str:
+    vid = raw_id.split(" ")[0].upper()
+    if vid.endswith("Z"):
+        vid = vid[:-1]
+    return vid
 
 
-def process_mp4(video: Path) -> list:
-    video_id = video.stem.split(" ")[0]
-    result = [video_id, video_id.replace('-', '-PPV-')]
-    return result
+def collect_jav_ids(jav_path: Path) -> set:
+    ids = set()
+    if not jav_path.exists():
+        print(f"路径不存在: {jav_path}")
+        return ids
+    for nfo in tqdm(list(jav_path.rglob("*.nfo")), desc="update JAV"):
+        vid = normalize_jav_id(nfo.stem)
+        ids.add(vid)
+    return ids
 
 
-def process_tokyo_hot(video: Path) -> list:
-    video_id = video.stem.split(" ")[0].replace('[无码]', '')
-    return [video_id, video_id.replace('n', 'N')]
+def collect_fc2_ids(fc2_path: Path) -> set:
+    ids = set()
+    if not fc2_path.exists():
+        return ids
+    for mp4 in tqdm(list(fc2_path.rglob("*.mp4")), desc="update FC2"):
+        vid = mp4.stem.split(" ")[0]
+        ids.add(vid)
+        ids.add(vid.replace("-", "-PPV-"))
+    return ids
 
 
-def process_vr(video: Path) -> list:
-    video_id = video.stem.split(" ")[0].upper()
-    video_id2 = video_id.replace('DSVR-', 'DSVR-0')
-    video_id3 = video_id.replace('DSVR-', '3DSVR-')
-    return [video_id, video_id2, video_id3]
+def collect_tokyo_hot_ids(path: Path) -> set:
+    ids = set()
+    if not path.exists():
+        return ids
+    for nfo in tqdm(list(path.rglob("*.nfo")), desc="update other"):
+        vid = nfo.stem.split(" ")[0].replace("[无码]", "")
+        ids.add(vid)
+        ids.add(vid.replace("n", "N"))
+    return ids
 
 
-def collect_folder_stats(target: Path) -> dict:
-    folder_stats = defaultdict(int)
-    for folder in target.iterdir():
-        if folder.is_dir():
-            nfo_count = len(list(folder.glob("*.nfo")))
-            if nfo_count > 0:
-                folder_name = folder.name.split(" ")[0]
-                folder_stats[folder_name] += nfo_count
-    return folder_stats
+def collect_vr_ids(path: Path) -> set:
+    ids = set()
+    if not path.exists():
+        return ids
+    for nfo in tqdm(list(path.rglob("*.nfo")), desc="update JAV-VR"):
+        vid = nfo.stem.split(" ")[0].upper()
+        ids.add(vid)
+        ids.add(vid.replace("DSVR-", "DSVR-0"))
+        ids.add(vid.replace("DSVR-", "3DSVR-"))
+    return ids
 
 
-def print_folder_stats(folder_stats: dict):
-    sorted_folders = sorted(folder_stats.items(), key=lambda x: x[1], reverse=True)
-    print(f"\n总共发现 {len(sorted_folders)} 个文件夹")
-    print(f"总共包含 {sum(folder_stats.values())} 个nfo文件")
-    print("\n文件夹排序结果（按nfo文件数量从高到低）：")
-    print("-" * 60)
-    for i, (folder_name, nfo_count) in enumerate(sorted_folders, 1):
-        print(f"{i:3d}. {folder_name:<40} {nfo_count:>5d} 个文件")
+def scan_quick(jav_path: Path) -> None:
+    jav_id = collect_jav_ids(jav_path)
+    fc2, tokyo, vr = [p for p, _, _ in OTHER_PATHS], OTHER_PATHS[0][0], OTHER_PATHS[1][0]
+    jav_id |= collect_fc2_ids(OTHER_PATHS[0][0])
+    jav_id |= collect_tokyo_hot_ids(OTHER_PATHS[1][0])
+    jav_id |= collect_vr_ids(OTHER_PATHS[2][0])
+
+    data = {"jav_id": sorted(jav_id)}
+    DATA_FILE.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+    print(f"quick mode: saved {len(jav_id)} IDs to {DATA_FILE}")
 
 
-def main():
-    database = {'jav_id': set(), 'jav_folder': {}, 'actor_count': {}}
-    folder_dict = database['jav_folder']
-    actor_count = database['actor_count']
+def scan_full(jav_path: Path) -> None:
+    jav_id = set()
+    folder_dict = {}
+    actor_count = {}
     missing_images = []
+    empty_folders = []
+    short_names = []
 
-    jav_path = get_base_path()
     if not jav_path.exists():
         print(f"路径不存在: {jav_path}")
         return
@@ -88,78 +97,74 @@ def main():
         if folder.is_dir():
             files = list(folder.iterdir())
             if len(files) == 0:
-                print("empty folder", folder)
+                empty_folders.append(str(folder))
         if len(folder.name.split()) < 2:
-            print(folder)
+            short_names.append(str(folder))
 
-    for video in tqdm(list(jav_path.rglob("*.nfo")), desc="update JAV"):
-        video_id = video.stem.split(" ")[0].upper()
-        if video_id[-1] == 'z':
-            video_id = video_id[0:-1]
-        database['jav_id'].add(video_id)
-        serial_id = video.stem.split("-")[0]
+    for nfo in tqdm(list(jav_path.rglob("*.nfo")), desc="update JAV"):
+        vid = normalize_jav_id(nfo.stem)
+        jav_id.add(vid)
+        serial_id = nfo.stem.split("-")[0]
         if serial_id not in folder_dict:
-            folder_dict[serial_id] = video.parent.name
-        
-        nfo_name = video.stem
-        fanart_file = video.parent / f"{nfo_name}-fanart.jpg"
-        poster_file = video.parent / f"{nfo_name}-poster.jpg"
-        
-        if not fanart_file.exists() or not poster_file.exists():
-            missing_images.append(video_id)
-        
+            folder_dict[serial_id] = nfo.parent.name
+
+        fanart = nfo.parent / f"{nfo.stem}-fanart.jpg"
+        poster = nfo.parent / f"{nfo.stem}-poster.jpg"
+        if not fanart.exists() or not poster.exists():
+            missing_images.append(vid)
+
         try:
-            content = video.read_text(encoding='utf-8', errors='ignore')
-            if '<tag>单体作品</tag>' in content:
-                import re
-                actor_match = re.search(r'<actor>\s*<name>([^<]+)</name>', content)
-                if actor_match:
-                    actor_name = actor_match.group(1).strip()
-                    actor_count[actor_name] = actor_count.get(actor_name, 0) + 1
+            content = nfo.read_text(encoding="utf-8", errors="ignore")
+            if "<tag>单体作品</tag>" in content:
+                m = re.search(r"<actor>\s*<name>([^<]+)</name>", content)
+                if m:
+                    actor_count[m.group(1).strip()] = actor_count.get(m.group(1).strip(), 0) + 1
         except Exception:
             pass
 
-    fc2_path = get_other_path("JAV-Other/FC2")
-    if fc2_path.exists():
-        for video in tqdm(list(fc2_path.rglob("*.mp4")), desc="update AVFC2"):
-            video_id = video.stem.split(" ")[0]
-            database['jav_id'].add(video_id)
-            database['jav_id'].add(video_id.replace('-', '-PPV-'))
+    jav_id |= collect_fc2_ids(OTHER_PATHS[0][0])
+    jav_id |= collect_tokyo_hot_ids(OTHER_PATHS[1][0])
+    jav_id |= collect_vr_ids(OTHER_PATHS[2][0])
 
-    tokyo_hot_path = get_other_path("JAV-Other/東京熱")
-    if tokyo_hot_path.exists():
-        for video in tqdm(list(tokyo_hot_path.rglob("*.nfo")), desc="update other"):
-            video_id = video.stem.split(" ")[0].replace('[无码]', '')
-            database['jav_id'].add(video_id)
-            database['jav_id'].add(video_id.replace('n', 'N'))
+    database = {
+        "jav_id": list(jav_id),
+        "jav_folder": folder_dict,
+        "actor_count": actor_count,
+    }
+    DATA_FILE.write_text(json.dumps(database, ensure_ascii=False, indent=2), encoding="utf-8")
 
-    vr_path = get_other_path("JAV-VR")
-    if vr_path.exists():
-        for video in tqdm(list(vr_path.rglob("*.nfo")), desc="update JAV-VR"):
-            video_id = video.stem.split(" ")[0].upper()
-            database['jav_id'].add(video_id)
-            database['jav_id'].add(video_id.replace('DSVR-', 'DSVR-0'))
-            database['jav_id'].add(video_id.replace('DSVR-', '3DSVR-'))
+    if empty_folders:
+        print("\n空文件夹:")
+        for f in empty_folders:
+            print(f"  {f}")
+    if short_names:
+        print("\n文件夹名缺少空格:")
+        for f in short_names:
+            print(f"  {f}")
 
-    database['jav_id'] = list(database['jav_id'])
+    folder_stats = defaultdict(int)
+    for folder in jav_path.iterdir():
+        if folder.is_dir():
+            nfo_count = len(list(folder.glob("*.nfo")))
+            if nfo_count > 0:
+                folder_stats[folder.name.split(" ")[0]] += nfo_count
 
-    with open("data-jav.json", "w", encoding="utf8") as fp:
-        json.dump(database, fp, ensure_ascii=False, indent=2)
+    sorted_folders = sorted(folder_stats.items(), key=lambda x: x[1], reverse=True)
+    print(f"\n总共发现 {len(sorted_folders)} 个文件夹")
+    print(f"总共包含 {sum(folder_stats.values())} 个nfo文件")
+    print("-" * 60)
+    for i, (name, cnt) in enumerate(sorted_folders, 1):
+        print(f"{i:3d}. {name:<40} {cnt:>5d} 个文件")
 
-    print("\n" + "=" * 60)
-    print("文件夹统计和排序")
-    print("=" * 60)
-
-    folder_stats = collect_folder_stats(jav_path)
-    print_folder_stats(folder_stats)
-    
     if missing_images:
-        print("\n" + "=" * 60)
-        print("缺少fanart.jpg或poster.jpg的nfo文件")
-        print("=" * 60)
+        print(f"\n缺少 fanart/poster 的 nfo: {len(missing_images)} 个")
         for vid in missing_images:
             print(vid)
 
 
 if __name__ == "__main__":
-    main()
+    print(f"mode: {MODE}")
+    if MODE == "quick":
+        scan_quick(JAV)
+    else:
+        scan_full(JAV)

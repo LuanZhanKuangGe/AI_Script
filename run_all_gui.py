@@ -23,6 +23,7 @@ SCRIPTS = [
     {"id": "reddclips",     "name": "ReddClips",     "path": str(SCRIPTS_DIR / "reddclips.py"),   "modes": ["quick", "full"]},
     {"id": "reelsmunkey",   "name": "ReelsMunkey",   "path": str(SCRIPTS_DIR / "reelsmunkey.py"),"modes": ["quick", "full"]},
     {"id": "rule34",        "name": "Rule34",         "path": str(SCRIPTS_DIR / "rule34.py"),     "modes": ["quick", "full"]},
+    {"id": "jav",           "name": "JAV",            "path": str(SCRIPTS_DIR / "jav.py"),         "modes": ["quick", "full"]},
 ]
 
 LOG_DIR = SCRIPTS_DIR / "logs"
