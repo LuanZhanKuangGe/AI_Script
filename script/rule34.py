@@ -58,7 +58,7 @@ def download_video(url, ref, filename):
 logging.getLogger('urllib3.connectionpool').setLevel(logging.WARNING)
 
 
-from all_path import HENTAI_RULE34
+from all_path import HENTAI_RULE34, QINGLONG_SCRIPTS
 
 
 class Rule34Crawler:
@@ -129,10 +129,15 @@ class Rule34Crawler:
             "rule34_data": list(self.existing_ids),
             "rule34_artist": []
         }
-        
-        with open("data-rule34.json", "w", encoding="utf8") as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
-        print(f"已保存 {len(self.existing_ids)} 个ID到 data-rule34.json")
+        content = json.dumps(data, ensure_ascii=False, indent=2)
+        local = Path(__file__).parent / "data-rule34.json"
+        remote = QINGLONG_SCRIPTS / "data-rule34.json"
+        local.write_text(content, encoding="utf-8")
+        try:
+            remote.write_text(content, encoding="utf-8")
+            print(f"已保存 {len(self.existing_ids)} 个ID到 {local.name} + 远程")
+        except Exception:
+            print(f"已保存 {len(self.existing_ids)} 个ID到 {local.name} (远程失败)")
 
     def load_artist_last_run(self):
         if os.path.exists("artist_last_run.json"):
