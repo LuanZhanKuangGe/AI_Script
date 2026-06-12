@@ -1,4 +1,5 @@
 import requests
+import sys
 from bs4 import BeautifulSoup
 from pathlib import Path
 from tqdm import tqdm
@@ -216,6 +217,11 @@ class Rule34Crawler:
 if __name__ == "__main__":
     import argparse
 
+    _mode = "quick"
+    if len(sys.argv) > 1 and sys.argv[1] in ("quick", "full"):
+        _mode = sys.argv[1]
+        sys.argv.pop(1)
+
     parser = argparse.ArgumentParser()
     parser.add_argument('-a', '--artist', type=str, help='指定 artist 名称下载全部页面')
     args = parser.parse_args()
@@ -296,7 +302,7 @@ if __name__ == "__main__":
             (crawler.target/artist).mkdir()
         
         last_run = crawler.artist_last_run.get(artist)
-        if last_run:
+        if last_run and _mode != "full":
             elapsed = time.time() - last_run
             if elapsed < 18000:
                 print(f'{artist} 上次处理未满5小时，跳过')

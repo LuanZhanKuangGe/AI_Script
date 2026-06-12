@@ -22,7 +22,7 @@ SCRIPTS = [
     {"id": "fyppt",         "name": "FYPPT",         "path": str(SCRIPTS_DIR / "fyppt.py"),      "modes": ["quick", "full"]},
     {"id": "reddclips",     "name": "ReddClips",     "path": str(SCRIPTS_DIR / "reddclips.py"),   "modes": ["quick", "full"]},
     {"id": "reelsmunkey",   "name": "ReelsMunkey",   "path": str(SCRIPTS_DIR / "reelsmunkey.py"),"modes": ["quick", "full"]},
-    {"id": "rule34",        "name": "Rule34",         "path": str(SCRIPTS_DIR / "rule34.py")},
+    {"id": "rule34",        "name": "Rule34",         "path": str(SCRIPTS_DIR / "rule34.py"),     "modes": ["quick", "full"]},
 ]
 
 LOG_DIR = SCRIPTS_DIR / "logs"
@@ -476,7 +476,7 @@ async function loadScripts() {
       <div class="status-dot ${s.state.replace(':','\\:')}"></div>
       <div class="info" onclick="selectScript('${s.id}')">
         <div class="name">${s.name}${stateIcon}</div>
-        <div class="modes-tag">${s.modes.length ? s.modes.join('/') : '&mdash;'}</div>
+        <div class="modes-tag">${s.modes.length ? s.modes.join('/') : 'full'}</div>
       </div>
     `;
     list.appendChild(div);
