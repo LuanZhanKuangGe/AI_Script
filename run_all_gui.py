@@ -12,20 +12,20 @@ from flask import Flask, request
 SCRIPTS_DIR = Path(__file__).parent / "script"
 
 SCRIPTS = [
-    {"id": "tikporn",      "name": "TikPorn",      "path": str(SCRIPTS_DIR / "tikporn.py"),   "modes": ["quick", "full"], "group": "Porn-Web"},
-    {"id": "sharesome",     "name": "ShareSome",     "path": str(SCRIPTS_DIR / "sharesome.py"), "modes": ["quick", "full"], "group": "Porn-Web"},
-    {"id": "xxxfollow",     "name": "XXXFollow",     "path": str(SCRIPTS_DIR / "xxxfollow.py"), "modes": ["quick", "full"], "group": "Porn-Web"},
-    {"id": "waptap",        "name": "WapTap",        "path": str(SCRIPTS_DIR / "waptap.py"),    "modes": ["quick", "full"], "group": "Porn-Web"},
-    {"id": "fikfap",        "name": "FikFap",        "path": str(SCRIPTS_DIR / "fikfap.py"),    "modes": ["quick", "full"], "group": "Porn-Web"},
-    {"id": "xfree",         "name": "XFree",         "path": str(SCRIPTS_DIR / "xfree.py"),     "modes": ["quick", "full"], "group": "Porn-Web"},
-    {"id": "download_tdl",  "name": "Download TDL",  "path": str(SCRIPTS_DIR / "download_tdl.py"),                              "group": "Porn-Web-2"},
-    {"id": "fyppt",         "name": "FYPPT",         "path": str(SCRIPTS_DIR / "fyppt.py"),      "modes": ["quick", "full"], "group": "Porn-Web-2"},
-    {"id": "reddclips",     "name": "ReddClips",     "path": str(SCRIPTS_DIR / "reddclips.py"),   "modes": ["quick", "full"], "group": "Porn-Web-2"},
-    {"id": "reelsmunkey",   "name": "ReelsMunkey",   "path": str(SCRIPTS_DIR / "reelsmunkey.py"),"modes": ["quick", "full"], "group": "Porn-Web-2"},
+    {"id": "tikporn",      "name": "TikPorn",      "path": str(SCRIPTS_DIR / "tikporn.py"),   "modes": ["quick", "full"], "group": "OnlyFans"},
+    {"id": "sharesome",     "name": "ShareSome",     "path": str(SCRIPTS_DIR / "sharesome.py"), "modes": ["quick", "full"], "group": "OnlyFans"},
+    {"id": "xxxfollow",     "name": "XXXFollow",     "path": str(SCRIPTS_DIR / "xxxfollow.py"), "modes": ["quick", "full"], "group": "OnlyFans"},
+    {"id": "waptap",        "name": "WapTap",        "path": str(SCRIPTS_DIR / "waptap.py"),    "modes": ["quick", "full"], "group": "OnlyFans"},
+    {"id": "fikfap",        "name": "FikFap",        "path": str(SCRIPTS_DIR / "fikfap.py"),    "modes": ["quick", "full"], "group": "OnlyFans"},
+    {"id": "xfree",         "name": "XFree",         "path": str(SCRIPTS_DIR / "xfree.py"),     "modes": ["quick", "full"], "group": "OnlyFans"},
+    {"id": "download_tdl",  "name": "Download TDL",  "path": str(SCRIPTS_DIR / "download_tdl.py"),                              "group": "TikTok"},
+    {"id": "fyppt",         "name": "FYPPT",         "path": str(SCRIPTS_DIR / "fyppt.py"),      "modes": ["quick", "full"], "group": "TikTok"},
+    {"id": "reddclips",     "name": "ReddClips",     "path": str(SCRIPTS_DIR / "reddclips.py"),   "modes": ["quick", "full"], "group": "TikTok"},
+    {"id": "reelsmunkey",   "name": "ReelsMunkey",   "path": str(SCRIPTS_DIR / "reelsmunkey.py"),"modes": ["quick", "full"], "group": "TikTok"},
     {"id": "rule34",        "name": "Rule34",         "path": str(SCRIPTS_DIR / "rule34.py"),     "modes": ["quick", "full"], "group": "Hentai"},
-    {"id": "jav",           "name": "JAV",            "path": str(SCRIPTS_DIR / "jav.py"),         "modes": ["quick", "full"], "group": "JAV"},
-    {"id": "manga",         "name": "Manga",          "path": str(SCRIPTS_DIR / "manga.py"),       "modes": ["full"],          "group": "JAV"},
-    {"id": "hanime",        "name": "Hanime",         "path": str(SCRIPTS_DIR / "hanime.py"),      "modes": ["full"],          "group": "JAV"},
+    {"id": "jav",           "name": "JAV",            "path": str(SCRIPTS_DIR / "jav.py"),         "modes": ["quick", "full"], "group": "Database"},
+    {"id": "manga",         "name": "Manga",          "path": str(SCRIPTS_DIR / "manga.py"),       "modes": ["full"],          "group": "Database"},
+    {"id": "hanime",        "name": "Hanime",         "path": str(SCRIPTS_DIR / "hanime.py"),      "modes": ["full"],          "group": "Database"},
 ]
 
 LOG_DIR = SCRIPTS_DIR / "logs"
@@ -444,8 +444,8 @@ document.getElementById('selectAll').addEventListener('change', function() {
   document.querySelectorAll('.script-check').forEach(cb => { cb.checked = checked; });
 });
 
-const GROUP_ORDER = ['Porn-Web', 'Porn-Web-2', 'Hentai', 'JAV'];
-const GROUP_NAMES = {'Porn-Web': 'Porn-Web', 'Porn-Web-2': 'Porn-Web 2', 'Hentai': 'Hentai', 'JAV': 'JAV'};
+const GROUP_ORDER = ['OnlyFans', 'TikTok', 'Hentai', 'Database'];
+const GROUP_NAMES = {'OnlyFans': 'OnlyFans', 'TikTok': 'TikTok', 'Hentai': 'Hentai', 'Database': 'Database'};
 
 async function loadScripts() {
   const resp = await fetch('/api/scripts');
