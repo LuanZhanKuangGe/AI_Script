@@ -31,7 +31,8 @@ from all_path import PORN_WEB_FYPTT as BASE_PATH
 BASE_PATH.mkdir(parents=True, exist_ok=True)
 
 # 爬取页数常量
-N = int(sys.argv[1]) if len(sys.argv) > 1 else 3
+_mode = sys.argv[1] if len(sys.argv) > 1 else "quick"
+N = 999999 if _mode == "full" else 3
 
 # 请求头
 HEADERS = {

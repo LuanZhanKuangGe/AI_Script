@@ -8,7 +8,8 @@ from all_path import PORN_WEB_REELSMUNKEY as BASE_PATH
 
 BASE_PATH.mkdir(parents=True, exist_ok=True)
 
-MAX_PAGES = int(sys.argv[1]) if len(sys.argv) > 1 else 3
+_mode = sys.argv[1] if len(sys.argv) > 1 else "quick"
+MAX_PAGES = 999999 if _mode == "full" else 3
 
 HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36 Edg/138.0.0.0',

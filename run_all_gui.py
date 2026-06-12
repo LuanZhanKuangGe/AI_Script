@@ -19,9 +19,9 @@ SCRIPTS = [
     {"id": "fikfap",        "name": "FikFap",        "path": str(SCRIPTS_DIR / "fikfap.py"),    "modes": ["quick", "full"]},
     {"id": "xfree",         "name": "XFree",         "path": str(SCRIPTS_DIR / "xfree.py"),     "modes": ["quick", "full"]},
     {"id": "download_tdl",  "name": "Download TDL",  "path": str(SCRIPTS_DIR / "download_tdl.py")},
-    {"id": "fyppt",         "name": "FYPPT",         "path": str(SCRIPTS_DIR / "fyppt.py")},
-    {"id": "reddclips",     "name": "ReddClips",     "path": str(SCRIPTS_DIR / "reddclips.py")},
-    {"id": "reelsmunkey",   "name": "ReelsMunkey",   "path": str(SCRIPTS_DIR / "reelsmunkey.py")},
+    {"id": "fyppt",         "name": "FYPPT",         "path": str(SCRIPTS_DIR / "fyppt.py"),      "modes": ["quick", "full"]},
+    {"id": "reddclips",     "name": "ReddClips",     "path": str(SCRIPTS_DIR / "reddclips.py"),   "modes": ["quick", "full"]},
+    {"id": "reelsmunkey",   "name": "ReelsMunkey",   "path": str(SCRIPTS_DIR / "reelsmunkey.py"),"modes": ["quick", "full"]},
     {"id": "rule34",        "name": "Rule34",         "path": str(SCRIPTS_DIR / "rule34.py")},
 ]
 

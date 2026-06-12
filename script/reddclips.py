@@ -6,7 +6,8 @@ from tqdm import tqdm
 
 BASE_URL = "https://api.reddclips.com"
 from all_path import PORN_WEB_REDDCLIPS as BASE_PATH
-MAX_PAGES = int(sys.argv[1]) if len(sys.argv) > 1 else 3
+_mode = sys.argv[1] if len(sys.argv) > 1 else "quick"
+MAX_PAGES = 999999 if _mode == "full" else 3
 BASE_PATH.mkdir(parents=True, exist_ok=True)
 
 HEADERS = {
