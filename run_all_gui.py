@@ -10,7 +10,6 @@ from queue import Queue
 from flask import Flask, request
 
 SCRIPTS_DIR = Path(__file__).parent / "script"
-ROOT_DIR = Path(__file__).parent
 
 SCRIPTS = [
     {"id": "tikporn",      "name": "TikPorn",      "path": str(SCRIPTS_DIR / "tikporn.py"),   "modes": ["quick", "full"]},
@@ -19,14 +18,14 @@ SCRIPTS = [
     {"id": "waptap",        "name": "WapTap",        "path": str(SCRIPTS_DIR / "waptap.py"),    "modes": ["quick", "full"]},
     {"id": "fikfap",        "name": "FikFap",        "path": str(SCRIPTS_DIR / "fikfap.py"),    "modes": ["quick", "full"]},
     {"id": "xfree",         "name": "XFree",         "path": str(SCRIPTS_DIR / "xfree.py"),     "modes": ["quick", "full"]},
-    {"id": "download_tdl",  "name": "Download TDL",  "path": str(ROOT_DIR / "download_tdl.py")},
-    {"id": "fyppt",         "name": "FYPPT",         "path": str(ROOT_DIR / "fyppt.py")},
-    {"id": "reddclips",     "name": "ReddClips",     "path": str(ROOT_DIR / "reddclips.py")},
-    {"id": "reelsmunkey",   "name": "ReelsMunkey",   "path": str(ROOT_DIR / "reelsmunkey.py")},
-    {"id": "rule34",        "name": "Rule34",         "path": str(ROOT_DIR / "rule34.py")},
+    {"id": "download_tdl",  "name": "Download TDL",  "path": str(SCRIPTS_DIR / "download_tdl.py")},
+    {"id": "fyppt",         "name": "FYPPT",         "path": str(SCRIPTS_DIR / "fyppt.py")},
+    {"id": "reddclips",     "name": "ReddClips",     "path": str(SCRIPTS_DIR / "reddclips.py")},
+    {"id": "reelsmunkey",   "name": "ReelsMunkey",   "path": str(SCRIPTS_DIR / "reelsmunkey.py")},
+    {"id": "rule34",        "name": "Rule34",         "path": str(SCRIPTS_DIR / "rule34.py")},
 ]
 
-LOG_DIR = Path(__file__).parent / "logs"
+LOG_DIR = SCRIPTS_DIR / "logs"
 LOG_DIR.mkdir(exist_ok=True)
 
 app = Flask(__name__)
