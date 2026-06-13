@@ -1,6 +1,9 @@
 import json
+import re
 import sys
+import shutil
 from pathlib import Path
+from collections import defaultdict
 from all_path import HENTAI_PICTURE_MANGA, QINGLONG_SCRIPTS
 
 MODE = sys.argv[1] if len(sys.argv) > 1 and sys.argv[1] in ("quick", "full") else "full"
@@ -30,6 +33,47 @@ def add_manga(database, manga):
     return True
 
 
+def move_from_other(manga_path: Path) -> None:
+    other_dir = manga_path / "#other"
+    if not other_dir.exists():
+        print("  #other 目录不存在，跳过移动")
+        return
+
+    zip_files = list(other_dir.glob("*.zip"))
+    print(f"  #other 中找到 {len(zip_files)} 个 zip 文件")
+
+    author_files = defaultdict(list)
+    for zip_file in zip_files:
+        match = re.match(r"\[([^\[\]]+)\]", zip_file.stem)
+        if match:
+            author_files[match.group(1)].append(zip_file)
+
+    multi_authors = [(a, fs) for a, fs in author_files.items() if len(fs) > 1]
+    if multi_authors:
+        print("  多文件的作者：")
+        for author, files in multi_authors:
+            print(f"    [{author}] {len(files)} 个文件")
+
+    moved = 0
+    for zip_file in zip_files:
+        match = re.match(r"\[([^\[\]]+)\]", zip_file.stem)
+        if not match:
+            print(f"  跳过（无法解析作者）：{zip_file.name}")
+            continue
+        author = match.group(1)
+        target_folder = manga_path / author
+        if target_folder.exists() and target_folder.is_dir():
+            target_path = target_folder / zip_file.name
+            if target_path.exists():
+                print(f"  已存在，跳过：{target_path.name}")
+                continue
+            shutil.move(str(zip_file), str(target_path))
+            moved += 1
+            print(f"  移动：{zip_file.name} -> {author}/")
+
+    print(f"  共移动 {moved} 个文件")
+
+
 def scan_full(manga_path: Path) -> None:
     print("[Manga] 完整模式启动")
 
@@ -37,6 +81,10 @@ def scan_full(manga_path: Path) -> None:
         print(f"[Manga] 路径不存在：{manga_path}")
         return
 
+    print("[1/3] 移动 #other 文件")
+    move_from_other(manga_path)
+
+    print("[2/3] 扫描漫画")
     database = {"manga": {}}
     items = [item for item in manga_path.iterdir() if item.is_dir() or item.is_file()]
     print(f"  扫描 {len(items)} 个项目")
@@ -54,6 +102,8 @@ def scan_full(manga_path: Path) -> None:
 
     total = sum(len(v) for v in database["manga"].values())
     print(f"  {len(database['manga'])} 个作者，{total} 个漫画，{skipped} 个跳过")
+
+    print("[3/3] 保存数据")
     save_data(database)
     print("[Manga] 完整模式完成")
 
