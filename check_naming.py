@@ -1,5 +1,6 @@
 import os
 import re
+import hashlib
 from pathlib import Path
 
 from all_path import PORN_CN_LUOWU as base_dir
@@ -29,6 +30,7 @@ for idx, folder in enumerate(folders, 1):
             continue
         
         name = file.stem
+        computed_md5 = None
         
         if ' - ' in name:
             parts = name.split(' - ', 1)
@@ -39,14 +41,13 @@ for idx, folder in enumerate(folders, 1):
                 if len(md5) == 32 and re.match(r'^[a-f0-9]+$', md5):
                     if file_part == cleaned_folder or file_part.startswith(cleaned_folder + ' '):
                         correct_files.append(str(file))
+                        continue
                     else:
                         folder_issues.append((file, name, md5))
-                else:
-                    folder_issues.append((file, name, None))
-            else:
-                folder_issues.append((file, name, None))
-        else:
-            folder_issues.append((file, name, None))
+                        continue
+        
+        computed_md5 = hashlib.md5(file.read_bytes()).hexdigest()
+        folder_issues.append((file, name, computed_md5))
     
     if folder_issues:
         incorrect_files.extend([f[0] for f in folder_issues])
@@ -55,23 +56,19 @@ for idx, folder in enumerate(folders, 1):
         print(f"清理后的名称: {cleaned_folder}")
         print(f"问题文件数: {len(folder_issues)}")
         for file, old_name, md5 in folder_issues:
-            if md5:
-                print(f"  {old_name} -> {cleaned_folder} - {md5}")
-            else:
-                print(f"  {old_name} [无有效MD5]")
+            print(f"  {old_name} -> {cleaned_folder} - {md5}")
         
         while True:
             resp = input("\n是否修正? (y/n/q): ").strip().lower()
             if resp == 'y':
                 for file, old_name, md5 in folder_issues:
-                    if md5:
-                        new_name = f"{cleaned_folder} - {md5}{file.suffix}"
-                        new_path = file.parent / new_name
-                        try:
-                            file.rename(new_path)
-                            print(f"  重命名: {old_name} -> {new_name}")
-                        except Exception as e:
-                            print(f"  失败: {old_name} - {e}")
+                    new_name = f"{cleaned_folder} - {md5}{file.suffix}"
+                    new_path = file.parent / new_name
+                    try:
+                        file.rename(new_path)
+                        print(f"  重命名: {old_name} -> {new_name}")
+                    except Exception as e:
+                        print(f"  失败: {old_name} - {e}")
                 break
             elif resp == 'n':
                 break
