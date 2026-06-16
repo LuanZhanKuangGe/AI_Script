@@ -6,16 +6,16 @@ class ExampleBridge extends BridgeAbstract {
     const MAINTAINER = 'YourName';
 
     public function collectData() {
-        $html = getSimpleHTMLDOM('https://example.com');
+        $html = getSimpleHTMLDOM(self::URI);
         if (!$html) {
             return;
         }
         foreach ($html->find('h1') as $element) {
-            $item = new \Item();
-            $item->title = $element->plaintext;
-            $item->uri = 'https://example.com';
-            $item->content = $element->plaintext;
-            $this->items[] = $item;
+            $this->items[] = [
+                'uri' => self::URI,
+                'title' => $element->plaintext,
+                'content' => $element->plaintext,
+            ];
         }
     }
 }
