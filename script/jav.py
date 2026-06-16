@@ -114,7 +114,7 @@ def scan_quick(jav_path: Path) -> None:
         print(f"[JAV] 路径不存在：{jav_path}")
         return
 
-    print("[1/5] 检查文件夹")
+    print("[1/6] 检查文件夹")
     empty_folders = []
     short_names = []
     for folder in jav_path.iterdir():
@@ -122,9 +122,9 @@ def scan_quick(jav_path: Path) -> None:
             empty_folders.append(str(folder))
         if len(folder.name.split()) < 2:
             short_names.append(str(folder))
-    print(f"[1/5] {len(empty_folders)} 个空文件夹，{len(short_names)} 个名称缺少空格")
+    print(f"[1/6] {len(empty_folders)} 个空文件夹，{len(short_names)} 个名称缺少空格")
 
-    print("[2/5] 扫描 JAV nfo (仅文件名)")
+    print("[2/6] 扫描 JAV nfo (仅文件名)")
     jav_id = set()
     folder_dict = {}
     nfo_files = list(jav_path.rglob("*.nfo"))
@@ -139,12 +139,14 @@ def scan_quick(jav_path: Path) -> None:
             folder_dict[serial_id] = nfo.parent.name
     print(f"  {len(jav_id)} 个ID，{len(folder_dict)} 个系列")
 
-    print("[3/5] 扫描 FC2")
+    print("[3/6] 扫描 FC2")
     jav_id |= collect_ids(OTHER_PATHS[0][0], OTHER_PATHS[0][1], "FC2", fc2_processor)
-    print("[4/5] 扫描 東京熱")
+    print("[4/6] 扫描 東京熱")
     jav_id |= collect_ids(OTHER_PATHS[1][0], OTHER_PATHS[1][1], "東京熱", tokyo_hot_processor)
+    print("[5/6] 扫描 JAV-VR")
+    jav_id |= collect_ids(OTHER_PATHS[2][0], OTHER_PATHS[2][1], "JAV-VR", vr_processor)
 
-    print("[5/5] 保存数据")
+    print("[6/6] 保存数据")
     save_data({"jav_id": list(jav_id), "jav_folder": folder_dict})
     print(f"  {len(jav_id)} 个ID，{len(folder_dict)} 个系列")
     print_stats(jav_path, empty_folders, short_names)
