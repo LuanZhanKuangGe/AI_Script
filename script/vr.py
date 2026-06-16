@@ -93,7 +93,7 @@ def scan():
 
             safe_title = sanitize_filename(title)
             ext = Path(cover_url).suffix or ".jpg"
-            filename = f"[{release_date}][{safe_title}]{ext}" if release_date else f"[{safe_title}]{ext}"
+            filename = f"[{release_date}] {safe_title}{ext}" if release_date else f"{safe_title}{ext}"
             save_path = VRCOVER_DIR / filename
 
             if save_path.exists():
