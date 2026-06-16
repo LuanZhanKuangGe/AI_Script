@@ -35,7 +35,7 @@ def rename_videos_with_resolution():
             company = parts[0].strip() if len(parts) > 0 else ""
             title = parts[1].strip() if len(parts) > 1 else ""
             if k_str and company and title:
-                new_name = f"{company} [{k_str}] {title}"
+                new_name = f"{company} [{k_str}] {title}".replace('_', '-').lower()
                 new_path = target_dir / new_name
                 if not new_path.exists():
                     print(f"重命名 {filename} 为 {new_name}")
