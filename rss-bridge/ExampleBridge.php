@@ -5,7 +5,7 @@ class ExampleBridge extends BridgeAbstract {
     const DESCRIPTION = '最简单的 RSS-Bridge 自定义例子';
     const MAINTAINER = 'YourName';
 
-    protected function collectData() {
+    public function collectData() {
         $html = getSimpleHTMLDOM('https://example.com');
         if (!$html) {
             return;
