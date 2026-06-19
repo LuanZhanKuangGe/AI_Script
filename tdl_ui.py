@@ -1,5 +1,5 @@
 import subprocess
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, Response, stream_with_context
 
 TDL_COMMAND = r"C:\Softwares\tdl_Windows_64bit\tdl.exe dl"
 DEFAULT_DOWNLOAD_DIR = r"C:\Users\zhoub\Downloads\Telegram Desktop\【视频】"
@@ -9,13 +9,30 @@ app = Flask(__name__)
 tasks = []
 
 
+def stream_command(command):
+    process = subprocess.Popen(
+        command,
+        shell=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        universal_newlines=True,
+        encoding="utf-8",
+        errors="replace",
+        bufsize=1,
+    )
+    for line in process.stdout:
+        yield line
+    process.stdout.close()
+    process.wait()
+
+
 def download_all(tasks_list, download_dir):
     if not tasks_list:
-        return "请先添加下载任务"
+        yield "请先添加下载任务"
+        return
     if not download_dir:
         download_dir = DEFAULT_DOWNLOAD_DIR
 
-    results = []
     for task in tasks_list:
         url = task["url"]
         count = task["count"]
@@ -25,19 +42,9 @@ def download_all(tasks_list, download_dir):
             stop = start + count
             for i in range(start, stop):
                 full_url = f"{url_base}comment={i}"
-                result = subprocess.run(
-                    f'{TDL_COMMAND} -u "{full_url}"',
-                    capture_output=True,
-                    shell=True
-                )
-                try:
-                    stdout = result.stdout.decode("utf-8", errors="replace") if result.stdout else ""
-                    stderr = result.stderr.decode("utf-8", errors="replace") if result.stderr else ""
-                except Exception:
-                    stdout = str(result.stdout)
-                    stderr = str(result.stderr)
-                output = stdout + stderr
-                results.append(f"[{full_url}]\n{output}")
+                yield f"[{full_url}]\n"
+                yield from stream_command(f'{TDL_COMMAND} -u "{full_url}"')
+                yield "\n" + "-" * 50 + "\n"
         else:
             base_url = url.split("?")[0]
             sub_url = ("/").join(base_url.split("/")[0:-1])
@@ -45,16 +52,9 @@ def download_all(tasks_list, download_dir):
             command = f'{TDL_COMMAND} --continue -d "{download_dir}"'
             for i in range(count):
                 command += f' -u "{sub_url}/{sub_index + i}"'
-            result = subprocess.run(command, capture_output=True, shell=True)
-            try:
-                stdout = result.stdout.decode("utf-8", errors="replace") if result.stdout else ""
-                stderr = result.stderr.decode("utf-8", errors="replace") if result.stderr else ""
-            except Exception:
-                stdout = str(result.stdout)
-                stderr = str(result.stderr)
-            output = stdout + stderr
-            results.append(f"[{base_url} x{count}]\n{output}")
-    return "\n" + "-" * 50 + "\n".join(results)
+            yield f"[{base_url} x{count}]\n"
+            yield from stream_command(command)
+            yield "\n" + "-" * 50 + "\n"
 
 
 HTML_PAGE = """<!DOCTYPE html>
@@ -175,9 +175,13 @@ async function clearTasks() {
   document.getElementById('output').textContent = '';
 }
 
+let downloading = false;
+
 async function downloadAll() {
+  if (downloading) return;
+  downloading = true;
   const out = document.getElementById('output');
-  out.textContent = '下载中，请稍候...';
+  out.textContent = '';
   const downloadDir = document.getElementById('downloadDir').value;
   try {
     const res = await fetch('/api/download', {
@@ -185,10 +189,19 @@ async function downloadAll() {
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({download_dir: downloadDir})
     });
-    const data = await res.json();
-    out.textContent = data.output || '(无输出)';
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    while (true) {
+      const {done, value} = await reader.read();
+      if (done) break;
+      out.textContent += decoder.decode(value, {stream: true});
+      out.scrollTop = out.scrollHeight;
+    }
+    if (!out.textContent.trim()) out.textContent = '(无输出)';
   } catch (e) {
     out.textContent = '请求失败: ' + e.message;
+  } finally {
+    downloading = false;
   }
 }
 
@@ -239,8 +252,10 @@ def download():
     data = request.get_json(force=True)
     download_dir = (data.get("download_dir") or "").strip() or DEFAULT_DOWNLOAD_DIR
     snapshot = list(tasks)
-    output = download_all(snapshot, download_dir)
-    return jsonify({"output": output})
+    return Response(
+        stream_with_context(download_all(snapshot, download_dir)),
+        content_type="text/plain; charset=utf-8",
+    )
 
 
 if __name__ == "__main__":
