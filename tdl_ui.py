@@ -77,6 +77,7 @@ HTML_PAGE = """<!DOCTYPE html>
   <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
     <div class="space-y-6">
       <section class="bg-slate-800 rounded-xl p-5 space-y-4 shadow-lg">
+        <h2 class="text-lg font-semibold text-slate-200">添加任务</h2>
         <div class="flex flex-col sm:flex-row gap-3">
           <input id="url" type="text" placeholder="输入 Telegram 链接"
             class="flex-1 px-4 py-2 rounded-lg bg-slate-700 border border-slate-600 focus:border-sky-400 focus:outline-none focus:ring-1 focus:ring-sky-400 placeholder-slate-500">
