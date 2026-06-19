@@ -75,7 +75,7 @@ HTML_PAGE = """<!DOCTYPE html>
   </header>
 
   <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-    <div class="space-y-6">
+    <div class="flex flex-col gap-6">
       <section class="bg-slate-800 rounded-xl p-5 space-y-4 shadow-lg">
         <h2 class="text-lg font-semibold text-slate-200">添加任务</h2>
         <div class="flex flex-col sm:flex-row gap-3">
@@ -94,9 +94,9 @@ HTML_PAGE = """<!DOCTYPE html>
         </div>
       </section>
 
-      <section class="bg-slate-800 rounded-xl p-5 space-y-4 shadow-lg">
+      <section class="bg-slate-800 rounded-xl p-5 space-y-4 shadow-lg flex-1 flex flex-col">
         <h2 class="text-lg font-semibold text-slate-200">下载任务列表</h2>
-        <div class="overflow-x-auto rounded-lg border border-slate-700 max-h-[60vh]">
+        <div class="overflow-auto rounded-lg border border-slate-700 flex-1">
           <table class="w-full text-sm">
             <thead class="bg-slate-700 text-slate-300 sticky top-0">
               <tr>
