@@ -26,16 +26,17 @@ def stream_command(command):
     process.wait()
 
 
-def download_all(tasks_list, download_dir):
-    if not tasks_list:
-        yield "请先添加下载任务"
+def download_all(tasks_to_download, download_dir):
+    if not tasks_to_download:
+        yield "没有未下载的任务"
         return
     if not download_dir:
         download_dir = DEFAULT_DOWNLOAD_DIR
 
-    for task in tasks_list:
+    for task in tasks_to_download:
         url = task["url"]
         count = task["count"]
+        task["status"] = "下载中"
         if 'comment=' in url:
             url_base = url.split("comment=")[0]
             start = int(url.split("comment=")[1])
@@ -55,6 +56,7 @@ def download_all(tasks_list, download_dir):
             yield f"[{base_url} x{count}]\n"
             yield from stream_command(command)
             yield "\n" + "-" * 50 + "\n"
+        task["status"] = "已下载"
 
 
 HTML_PAGE = """<!DOCTYPE html>
@@ -97,6 +99,7 @@ HTML_PAGE = """<!DOCTYPE html>
           <tr>
             <th class="px-4 py-2 text-left">URL</th>
             <th class="px-4 py-2 text-center w-20">数量</th>
+            <th class="px-4 py-2 text-center w-24">状态</th>
             <th class="px-4 py-2 text-center w-20">操作</th>
           </tr>
         </thead>
@@ -126,16 +129,25 @@ function escapeHtml(s) {
   return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
+const statusColors = {
+  '未下载': 'bg-slate-600 text-slate-200',
+  '下载中': 'bg-amber-600 text-amber-100',
+  '已下载': 'bg-emerald-600 text-emerald-100'
+};
+
 function renderTasks(list) {
   const body = document.getElementById('taskBody');
   if (!list.length) {
-    body.innerHTML = '<tr><td colspan="3" class="px-4 py-6 text-center text-slate-500">暂无任务</td></tr>';
+    body.innerHTML = '<tr><td colspan="4" class="px-4 py-6 text-center text-slate-500">暂无任务</td></tr>';
     return;
   }
   body.innerHTML = list.map((t, i) => `
     <tr class="hover:bg-slate-750">
       <td class="px-4 py-2 font-mono text-xs break-all">${escapeHtml(t.url)}</td>
       <td class="px-4 py-2 text-center">${t.count}</td>
+      <td class="px-4 py-2 text-center">
+        <span class="px-2 py-1 rounded text-xs ${statusColors[t.status] || statusColors['未下载']}">${t.status || '未下载'}</span>
+      </td>
       <td class="px-4 py-2 text-center">
         <button onclick="removeTask(${i})" class="text-rose-400 hover:text-rose-300 text-xs">删除</button>
       </td>
@@ -183,6 +195,7 @@ async function downloadAll() {
   const out = document.getElementById('output');
   out.textContent = '';
   const downloadDir = document.getElementById('downloadDir').value;
+  const poller = setInterval(refreshTasks, 1000);
   try {
     const res = await fetch('/api/download', {
       method: 'POST',
@@ -201,7 +214,9 @@ async function downloadAll() {
   } catch (e) {
     out.textContent = '请求失败: ' + e.message;
   } finally {
+    clearInterval(poller);
     downloading = false;
+    await refreshTasks();
   }
 }
 
@@ -217,9 +232,13 @@ def index():
     return HTML_PAGE.replace("__DEFAULT_DIR__", repr(DEFAULT_DOWNLOAD_DIR))
 
 
+def serialize_tasks():
+    return [{"url": t["url"], "count": t["count"], "status": t.get("status", "未下载")} for t in tasks]
+
+
 @app.route("/api/tasks", methods=["GET"])
 def get_tasks():
-    return jsonify([{"url": t["url"], "count": t["count"]} for t in tasks])
+    return jsonify(serialize_tasks())
 
 
 @app.route("/api/add", methods=["POST"])
@@ -228,8 +247,8 @@ def add_task():
     url = (data.get("url") or "").strip()
     count = max(1, int(data.get("count") or 1))
     if url:
-        tasks.append({"url": url, "count": count})
-    return jsonify([{"url": t["url"], "count": t["count"]} for t in tasks])
+        tasks.append({"url": url, "count": count, "status": "未下载"})
+    return jsonify(serialize_tasks())
 
 
 @app.route("/api/remove", methods=["POST"])
@@ -238,7 +257,7 @@ def remove_task():
     index = int(data.get("index") or 0)
     if 0 <= index < len(tasks):
         tasks.pop(index)
-    return jsonify([{"url": t["url"], "count": t["count"]} for t in tasks])
+    return jsonify(serialize_tasks())
 
 
 @app.route("/api/clear", methods=["POST"])
@@ -251,9 +270,9 @@ def clear_tasks():
 def download():
     data = request.get_json(force=True)
     download_dir = (data.get("download_dir") or "").strip() or DEFAULT_DOWNLOAD_DIR
-    snapshot = list(tasks)
+    pending = [t for t in tasks if t.get("status", "未下载") == "未下载"]
     return Response(
-        stream_with_context(download_all(snapshot, download_dir)),
+        stream_with_context(download_all(pending, download_dir)),
         content_type="text/plain; charset=utf-8",
     )
 
