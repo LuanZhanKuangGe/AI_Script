@@ -68,56 +68,60 @@ HTML_PAGE = """<!DOCTYPE html>
 <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-slate-900 text-slate-100 min-h-screen">
-<div class="max-w-4xl mx-auto p-6 space-y-6">
+<div class="max-w-7xl mx-auto p-6 space-y-6">
   <header class="space-y-1">
     <h1 class="text-3xl font-bold text-sky-400">TDL Downloader</h1>
     <p class="text-slate-400 text-sm">添加多个 Telegram URL 批量下载</p>
   </header>
 
-  <section class="bg-slate-800 rounded-xl p-5 space-y-4 shadow-lg">
-    <div class="flex flex-col sm:flex-row gap-3">
-      <input id="url" type="text" placeholder="输入 Telegram 链接"
-        class="flex-1 px-4 py-2 rounded-lg bg-slate-700 border border-slate-600 focus:border-sky-400 focus:outline-none focus:ring-1 focus:ring-sky-400 placeholder-slate-500">
-      <input id="count" type="number" value="1" min="1" step="1"
-        class="w-24 px-4 py-2 rounded-lg bg-slate-700 border border-slate-600 focus:border-sky-400 focus:outline-none focus:ring-1 focus:ring-sky-400 text-center">
-      <button onclick="addTask()"
-        class="px-5 py-2 rounded-lg bg-sky-600 hover:bg-sky-500 transition font-medium whitespace-nowrap">添加任务</button>
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div class="space-y-6">
+      <section class="bg-slate-800 rounded-xl p-5 space-y-4 shadow-lg">
+        <div class="flex flex-col sm:flex-row gap-3">
+          <input id="url" type="text" placeholder="输入 Telegram 链接"
+            class="flex-1 px-4 py-2 rounded-lg bg-slate-700 border border-slate-600 focus:border-sky-400 focus:outline-none focus:ring-1 focus:ring-sky-400 placeholder-slate-500">
+          <input id="count" type="number" value="1" min="1" step="1"
+            class="w-24 px-4 py-2 rounded-lg bg-slate-700 border border-slate-600 focus:border-sky-400 focus:outline-none focus:ring-1 focus:ring-sky-400 text-center">
+          <button onclick="addTask()"
+            class="px-5 py-2 rounded-lg bg-sky-600 hover:bg-sky-500 transition font-medium whitespace-nowrap">添加任务</button>
+        </div>
+
+        <div class="flex flex-col sm:flex-row gap-3 items-center">
+          <label class="text-slate-400 text-sm whitespace-nowrap">下载目录</label>
+          <input id="downloadDir" type="text"
+            class="flex-1 px-4 py-2 rounded-lg bg-slate-700 border border-slate-600 focus:border-sky-400 focus:outline-none focus:ring-1 focus:ring-sky-400 font-mono text-sm">
+        </div>
+      </section>
+
+      <section class="bg-slate-800 rounded-xl p-5 space-y-4 shadow-lg">
+        <h2 class="text-lg font-semibold text-slate-200">下载任务列表</h2>
+        <div class="overflow-x-auto rounded-lg border border-slate-700 max-h-[60vh]">
+          <table class="w-full text-sm">
+            <thead class="bg-slate-700 text-slate-300 sticky top-0">
+              <tr>
+                <th class="px-4 py-2 text-left">URL</th>
+                <th class="px-4 py-2 text-center w-20">数量</th>
+                <th class="px-4 py-2 text-center w-24">状态</th>
+                <th class="px-4 py-2 text-center w-20">操作</th>
+              </tr>
+            </thead>
+            <tbody id="taskBody" class="divide-y divide-slate-700"></tbody>
+          </table>
+        </div>
+        <div class="flex gap-3">
+          <button onclick="downloadAll()"
+            class="px-5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 transition font-medium">开始下载</button>
+          <button onclick="clearTasks()"
+            class="px-5 py-2 rounded-lg bg-rose-600 hover:bg-rose-500 transition font-medium">清空列表</button>
+        </div>
+      </section>
     </div>
 
-    <div class="flex flex-col sm:flex-row gap-3 items-center">
-      <label class="text-slate-400 text-sm whitespace-nowrap">下载目录</label>
-      <input id="downloadDir" type="text"
-        class="flex-1 px-4 py-2 rounded-lg bg-slate-700 border border-slate-600 focus:border-sky-400 focus:outline-none focus:ring-1 focus:ring-sky-400 font-mono text-sm">
-    </div>
-  </section>
-
-  <section class="bg-slate-800 rounded-xl p-5 space-y-4 shadow-lg">
-    <h2 class="text-lg font-semibold text-slate-200">下载任务列表</h2>
-    <div class="overflow-x-auto rounded-lg border border-slate-700">
-      <table class="w-full text-sm">
-        <thead class="bg-slate-700 text-slate-300">
-          <tr>
-            <th class="px-4 py-2 text-left">URL</th>
-            <th class="px-4 py-2 text-center w-20">数量</th>
-            <th class="px-4 py-2 text-center w-24">状态</th>
-            <th class="px-4 py-2 text-center w-20">操作</th>
-          </tr>
-        </thead>
-        <tbody id="taskBody" class="divide-y divide-slate-700"></tbody>
-      </table>
-    </div>
-    <div class="flex gap-3">
-      <button onclick="downloadAll()"
-        class="px-5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 transition font-medium">开始下载</button>
-      <button onclick="clearTasks()"
-        class="px-5 py-2 rounded-lg bg-rose-600 hover:bg-rose-500 transition font-medium">清空列表</button>
-    </div>
-  </section>
-
-  <section class="bg-slate-800 rounded-xl p-5 space-y-3 shadow-lg">
-    <h2 class="text-lg font-semibold text-slate-200">下载状态</h2>
-    <pre id="output" class="bg-slate-900 rounded-lg p-4 h-80 overflow-auto text-xs font-mono text-emerald-300 whitespace-pre-wrap border border-slate-700"></pre>
-  </section>
+    <section class="bg-slate-800 rounded-xl p-5 space-y-3 shadow-lg flex flex-col">
+      <h2 class="text-lg font-semibold text-slate-200">下载状态</h2>
+      <pre id="output" class="bg-slate-900 rounded-lg p-4 flex-1 min-h-[60vh] overflow-auto text-xs font-mono text-emerald-300 whitespace-pre-wrap border border-slate-700"></pre>
+    </section>
+  </div>
 </div>
 
 <script>
