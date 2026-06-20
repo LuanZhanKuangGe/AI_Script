@@ -29,6 +29,17 @@ def validate_title(title: str) -> str:
     return title
 
 
+def extract_json_ld(html: str):
+    pattern = r'<script[^>]*type="application/ld\+json"[^>]*>(.*?)</script>'
+    match = re.search(pattern, html, re.DOTALL)
+    if not match:
+        return None
+    data = json.loads(match.group(1))
+    if isinstance(data, list):
+        data = data[0] if data else {}
+    return data
+
+
 def parse_list_page(session: requests.Session, page_url: str) -> list:
     try:
         response = session.get(page_url, headers=HEADERS, timeout=30)
@@ -36,14 +47,10 @@ def parse_list_page(session: requests.Session, page_url: str) -> list:
 
         videos = []
 
-        pattern = r'<script[^>]*type="application/ld\+json"[^>]*>(.*?)</script>'
-        match = re.search(pattern, response.text, re.DOTALL)
-        if not match:
+        data = extract_json_ld(response.text)
+        if not data:
             print(f"  未找到JSON-LD数据")
             return []
-
-        json_text = match.group(1)
-        data = json.loads(json_text)
 
         main_entity = data.get('mainEntity', {})
         item_list = main_entity.get('itemListElement', [])
@@ -51,15 +58,14 @@ def parse_list_page(session: requests.Session, page_url: str) -> list:
         for item in item_list:
             video_obj = item.get('item', {})
             name = video_obj.get('name', 'untitled')
-            embed_url = video_obj.get('embedUrl', '')
-            content_url = video_obj.get('contentUrl', '')
+            url = video_obj.get('url', '')
 
-            if content_url:
-                video_id = content_url.split('/')[-1].replace('.mp4', '')
+            if url:
+                video_id = url.rstrip('/').split('/')[-1]
                 videos.append({
                     'id': video_id,
                     'title': name,
-                    'url': content_url
+                    'page_url': url
                 })
 
         return videos
@@ -67,6 +73,20 @@ def parse_list_page(session: requests.Session, page_url: str) -> list:
     except Exception as e:
         print(f"  解析列表页失败: {e}")
         return []
+
+
+def get_video_download_url(session: requests.Session, page_url: str) -> str:
+    try:
+        response = session.get(page_url, headers=HEADERS, timeout=30)
+        response.raise_for_status()
+        data = extract_json_ld(response.text)
+        if data:
+            content_url = data.get('contentUrl', '')
+            if content_url:
+                return content_url
+    except Exception as e:
+        print(f"  获取视频地址失败: {e}")
+    return ''
 
 
 def download_file(session: requests.Session, url: str, filepath: Path) -> bool:
@@ -160,11 +180,16 @@ def main():
     total_failed = 0
 
     for idx, video in enumerate(filtered_videos, 1):
-        video_url = video['url']
         filename = video['filename']
         filepath = BASE_PATH / filename
 
         print(f"  [{idx}/{to_download}] {filename}")
+
+        video_url = get_video_download_url(session, video['page_url'])
+        if not video_url:
+            print(f"    未获取到视频地址，跳过")
+            total_failed += 1
+            continue
 
         if download_file(session, video_url, filepath):
             total_downloaded += 1
