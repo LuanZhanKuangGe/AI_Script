@@ -174,10 +174,9 @@ def main():
 
     filtered_videos = []
     for video in all_videos:
-        video_id = video['id']
         title = video['title']
         clean_title = validate_title(title)
-        filename = f"[{video_id}] {clean_title}.mp4"
+        filename = f"{clean_title}.mp4"
         if filename not in existing_files:
             video['filename'] = filename
             filtered_videos.append(video)
