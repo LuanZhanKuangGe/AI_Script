@@ -40,9 +40,11 @@ def extract_json_ld(html: str):
     return data
 
 
-def parse_list_page(session: requests.Session, page_url: str) -> list:
+def parse_list_page(session: requests.Session, page_url: str):
     try:
         response = session.get(page_url, headers=HEADERS, timeout=30)
+        if response.status_code == 404:
+            return None
         response.raise_for_status()
 
         videos = []
@@ -70,6 +72,11 @@ def parse_list_page(session: requests.Session, page_url: str) -> list:
 
         return videos
 
+    except requests.exceptions.HTTPError as e:
+        if e.response is not None and e.response.status_code == 404:
+            return None
+        print(f"  解析列表页失败: {e}")
+        return []
     except Exception as e:
         print(f"  解析列表页失败: {e}")
         return []
@@ -154,6 +161,9 @@ def main():
         page_url = f"https://reelsmunkey.com/page/{page}"
         print(f"\n获取第 {page} 页: {page_url}")
         videos = parse_list_page(session, page_url)
+        if videos is None:
+            print(f"  第 {page} 页不存在，已到最后一页，停止翻页")
+            break
         print(f"  获取到 {len(videos)} 个视频")
         all_videos.extend(videos)
 
