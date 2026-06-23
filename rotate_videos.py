@@ -1,8 +1,8 @@
-import sys
 import subprocess
 import re
 import time
 from pathlib import Path
+from tkinter import Tk, filedialog
 
 
 def get_bitrate(video_path: Path) -> int:
@@ -58,11 +58,20 @@ def rotate_video(video_path: Path, output_dir: Path):
 
 
 def main():
-    if len(sys.argv) < 2:
-        print("用法: python rotate_videos.py <文件夹路径>")
+    root = Tk()
+    root.withdraw()
+    root.attributes('-topmost', True)
+    folder_str = filedialog.askdirectory(
+        title="选择包含视频的文件夹",
+        initialdir=r"C:\Users\zhoub\Downloads"
+    )
+    root.destroy()
+
+    if not folder_str:
+        print("未选择文件夹")
         return
 
-    folder = Path(sys.argv[1])
+    folder = Path(folder_str)
     if not folder.exists() or not folder.is_dir():
         print(f"文件夹不存在: {folder}")
         return
