@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         sehuatang 帖子排序
 // @namespace    http://tampermonkey.net/
-// @version      1.0
-// @description  对sehuatang页面的帖子进行排序：AI/裸舞优先蓝色加粗，其他按查看数排序
+// @version      1.1
+// @description  对sehuatang页面的帖子进行排序：AI/裸舞优先蓝色加粗，其他按查看数排序；帖子页ed2k复制代码改为打开链接
 // @match        https://www.sehuatang.net/*
 // @grant        GM_xmlhttpRequest
 // @grant        GM_registerMenuCommand
@@ -95,6 +95,30 @@
         console.log('[Sort] === 排序结束 ===');
     }
 
+    function convertCopyToOpen() {
+        $('div.blockcode').each(function() {
+            const $block = $(this);
+            const $em = $block.find('em').first();
+            if ($em.length === 0) return;
+
+            const links = [];
+            $block.find('li').each(function() {
+                const text = $(this).text().trim();
+                if (text.startsWith('ed2k://')) {
+                    links.push(text);
+                }
+            });
+            if (links.length === 0) return;
+
+            const $newEm = $('<em>').text('打开链接').css('cursor', 'pointer');
+            $newEm.on('click', function(e) {
+                e.preventDefault();
+                links.forEach(link => window.open(link));
+            });
+            $em.replaceWith($newEm);
+        });
+    }
+
     function promptKeywords(key, label, defaultValue) {
         const current = GM_getValue(key, '') || defaultValue;
         const input = prompt(`请输入${label}（多个关键词用英文逗号分隔）`, current);
@@ -109,6 +133,7 @@
 
     function initSort() {
         setTimeout(sortThreads, 500);
+        setTimeout(convertCopyToOpen, 500);
     }
 
     $(document).ready(initSort);
