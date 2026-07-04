@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Missav Highlighter
 // @namespace    http://tampermonkey.net/
-// @version      1.0
-// @description  Highlight videos that exist in the local database
+// @version      1.1
+// @description  Highlight videos that exist in the local database; block uncensored videos
 // @author       You
 // @match        https://missav.ws/*
 // @grant        GM_xmlhttpRequest
@@ -57,7 +57,20 @@
         });
     }
 
+    function blockUncensoredVideos() {
+        $('div.thumbnail').each(function() {
+            const $thumbnail = $(this);
+            const $spans = $thumbnail.find('span').filter(function() {
+                return $(this).text().trim() === '无码影片';
+            });
+            if ($spans.length > 0) {
+                $thumbnail.closest('div').parent('div').hide();
+            }
+        });
+    }
+
     function init() {
+        blockUncensoredVideos();
         console.log('[Missav] Script starting...');
         
         GM_xmlhttpRequest({
