@@ -58,7 +58,10 @@
     }
 
     function blockUncensoredVideos() {
-        $('div.thumbnail').each(function() {
+        const $grid = $('div.grid.grid-cols-2');
+        if ($grid.length === 0) return;
+
+        $grid.find('div.thumbnail').each(function() {
             const $thumbnail = $(this);
             const $spans = $thumbnail.find('span').filter(function() {
                 return $(this).text().trim() === '无码影片';
