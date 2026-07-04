@@ -64,7 +64,8 @@
         $grid.find('div.thumbnail').each(function() {
             const $thumbnail = $(this);
             const $spans = $thumbnail.find('span').filter(function() {
-                return $(this).text().trim() === '无码影片';
+                const t = $(this).text().trim();
+                return t === '无码影片' || t === '中文字幕';
             });
             if ($spans.length > 0) {
                 $thumbnail.closest('div').parent('div').hide();
