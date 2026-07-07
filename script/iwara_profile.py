@@ -319,7 +319,9 @@ def crawl_artist(artist: str, folder: Path, cache: dict):
             if video.get("numLikes", 0) < MIN_LIKES:
                 skipped_likes += 1
                 continue
-            if video.get("duration", 0) < MIN_DURATION:
+            file_info = video.get("file") or {}
+            duration = file_info.get("duration") or 0
+            if duration < MIN_DURATION:
                 skipped_duration += 1
                 continue
             video_id = video["id"]
