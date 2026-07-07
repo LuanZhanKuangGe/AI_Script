@@ -13,6 +13,7 @@ sys.stdout.reconfigure(encoding='utf-8')
 
 BASE_DIR = Path(r"D:\Hentai-MMD-new")
 MIN_LIKES = 500
+MIN_DURATION = 90
 CACHE_INTERVAL = timedelta(hours=3)
 CACHE_FILE = Path(__file__).parent / "crawl_cache.json"
 
@@ -288,6 +289,7 @@ def crawl_artist(artist: str, folder: Path, cache: dict):
     skipped_non_r18 = 0
     skipped_existing = 0
     skipped_likes = 0
+    skipped_duration = 0
     page = 0
 
     while True:
@@ -316,6 +318,9 @@ def crawl_artist(artist: str, folder: Path, cache: dict):
                 continue
             if video.get("numLikes", 0) < MIN_LIKES:
                 skipped_likes += 1
+                continue
+            if video.get("duration", 0) < MIN_DURATION:
+                skipped_duration += 1
                 continue
             video_id = video["id"]
             if video_id.lower() in existing_ids:
@@ -356,7 +361,7 @@ def crawl_artist(artist: str, folder: Path, cache: dict):
     rename_existing_videos(folder, video_info)
 
     print(f"\n=== {username} ({artist}) 已有 {len(existing_ids)} 个视频，查找新视频 ===")
-    print(f"  跳过: 私有={skipped_private}, 非R18={skipped_non_r18}, 已有={skipped_existing}, 收藏<{MIN_LIKES}={skipped_likes}")
+    print(f"  跳过: 私有={skipped_private}, 非R18={skipped_non_r18}, 已有={skipped_existing}, 收藏<{MIN_LIKES}={skipped_likes}, 时长<{MIN_DURATION}s={skipped_duration}")
 
     if not all_videos:
         print("  无新视频")
