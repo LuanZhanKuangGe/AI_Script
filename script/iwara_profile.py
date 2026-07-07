@@ -13,7 +13,7 @@ sys.stdout.reconfigure(encoding='utf-8')
 
 BASE_DIR = Path(r"D:\Hentai-MMD-new")
 MIN_LIKES = 500
-MIN_DURATION = 90
+MIN_DURATION = 60
 CACHE_INTERVAL = timedelta(hours=3)
 CACHE_FILE = Path(__file__).parent / "crawl_cache.json"
 
