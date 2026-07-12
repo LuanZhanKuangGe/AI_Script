@@ -68,10 +68,22 @@ def fetch_posts(session: requests.Session, username: str, after_id: Optional[int
         return []
 
 
+def _parse_map_uri(playlist: str) -> Optional[str]:
+    m = re.search(r'#EXT-X-MAP:URI="([^"]+)"', playlist)
+    return m.group(1) if m else None
+
+
 def download_m3u8_video(session: requests.Session, m3u8_url: str, output_path: Path, referer: str,
                         max_retries: int = 3) -> bool:
     if output_path.exists():
         return True
+
+    # 通过 ffmpeg 直接对 master playlist 复用（支持音频轨 + EXT-X-MAP）
+    if _mux_with_ffmpeg(session, m3u8_url, output_path, referer, max_retries):
+        print(f"    ✓ 下载完成(ffmpeg): {output_path.name}")
+        return True
+
+    # 回退到原有片段拼接逻辑
     tmp = output_path.with_suffix(output_path.suffix + '.tmp')
     if tmp.exists():
         tmp.unlink()
@@ -112,6 +124,8 @@ def download_m3u8_video(session: requests.Session, m3u8_url: str, output_path: P
                 return download_m3u8_video(session, best_url, output_path, referer, max_retries)
             return False
 
+        # EXT-X-MAP init 分片（必须写入头部，否则播放器无法解析）
+        init_uri = _parse_map_uri(playlist)
         segments = []
         for line in playlist.splitlines():
             line = line.strip()
@@ -119,13 +133,20 @@ def download_m3u8_video(session: requests.Session, m3u8_url: str, output_path: P
                 seg_url = line if line.startswith('http') else urllib.parse.urljoin(base_url, line)
                 segments.append(seg_url)
 
-        if not segments:
+        if not segments and not init_uri:
             print(f"    未找到视频片段")
             return False
 
         output_path.parent.mkdir(parents=True, exist_ok=True)
         try:
-            with open(tmp, 'wb') as f, tqdm(total=len(segments), unit='seg', desc=output_path.name, leave=False) as pbar:
+            with open(tmp, 'wb') as f, tqdm(total=len(segments) + (1 if init_uri else 0), unit='seg',
+                                             desc=output_path.name, leave=False) as pbar:
+                if init_uri:
+                    init_url = init_uri if init_uri.startswith('http') else urllib.parse.urljoin(base_url, init_uri)
+                    init_resp = session.get(init_url, headers=dl_headers, timeout=60)
+                    init_resp.raise_for_status()
+                    f.write(init_resp.content)
+                    pbar.update(1)
                 for seg_url in segments:
                     seg_resp = session.get(seg_url, headers=dl_headers, timeout=60)
                     seg_resp.raise_for_status()
@@ -140,6 +161,87 @@ def download_m3u8_video(session: requests.Session, m3u8_url: str, output_path: P
                 tmp.unlink()
             if attempt == max_retries:
                 return False
+    return False
+
+
+def _mux_with_ffmpeg(session: requests.Session, m3u8_url: str, output_path: Path, referer: str,
+                     max_retries: int = 3) -> bool:
+    """优先用 ffmpeg 合成完整 mp4(含音频)。成功返回 True，失败回退原逻辑。"""
+    import shutil
+    import subprocess
+    if not shutil.which('ffmpeg'):
+        return False
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = output_path.with_suffix(output_path.suffix + '.tmp')
+    if tmp.exists():
+        tmp.unlink()
+
+    # 构造 master playlist 的过滤副本：最佳视频变体 + 音频组(URI 已绝对化)
+    try:
+        resp = session.get(m3u8_url, timeout=30,
+                            headers={'User-Agent': BASE_API_HEADERS['user-agent'],
+                                     'Referer': referer, 'Origin': 'https://fikfap.com'})
+        resp.raise_for_status()
+    except Exception:
+        return False
+    master = resp.text
+    base_url = m3u8_url.rsplit('/', 1)[0] + '/'
+
+    if '#EXT-X-STREAM-INF' not in master:
+        return False  # 仅在 master playlist 时使用 ffmpeg 方案
+
+    filtered = ["#EXTM3U", "#EXT-X-VERSION:6"]
+    best_bw, best_inf, best_uri, audio_line = -1, None, None, None
+    cur_bw, cur_inf = 0, None
+    for ln in master.splitlines():
+        if ln.startswith("#EXT-X-MEDIA:") and "TYPE=AUDIO" in ln and audio_line is None:
+            m = re.search(r'URI="([^"]+)"', ln)
+            if m:
+                abs_uri = urllib.parse.urljoin(base_url, m.group(1))
+                ln = ln[:m.start()] + 'URI="' + abs_uri + '"' + ln[m.end():]
+            audio_line = ln
+        elif ln.startswith("#EXT-X-STREAM-INF:"):
+            m = re.search(r"BANDWIDTH=(\d+)", ln)
+            cur_bw = int(m.group(1)) if m else 0
+            cur_inf = ln
+        elif ln.strip() and not ln.startswith("#"):
+            if cur_bw > best_bw:
+                best_bw, best_inf, best_uri = cur_bw, cur_inf, ln.strip()
+            cur_bw, cur_inf = 0, None
+    if not best_uri:
+        return False
+    if audio_line:
+        filtered.append(audio_line)
+    filtered.append(best_inf)
+    filtered.append(best_uri if best_uri.startswith("http") else urllib.parse.urljoin(base_url, best_uri))
+    filtered.append("#EXT-X-ENDLIST")
+
+    import tempfile
+    filt_path = Path(tempfile.gettempdir()) / f"fikfap_master_{output_path.stem}.m3u8"
+    filt_path.write_text("\n".join(filtered), encoding="utf-8")
+
+    headers_str = f"Referer: {referer}\r\nOrigin: https://fikfap.com\r\n"
+    cmd = ["ffmpeg", "-y", "-nostdin", "-hide_banner", "-loglevel", "error",
+           "-protocol_whitelist", "file,http,https,tcp,tls,crypto,data",
+           "-user_agent", BASE_API_HEADERS["user-agent"], "-headers", headers_str,
+           "-i", str(filt_path),
+           "-map", "0:a:0", "-map", "0:v:0", "-c", "copy", "-movflags", "+faststart",
+           str(tmp)]
+    try:
+        subprocess.run(cmd, check=True, capture_output=True, timeout=600)
+        tmp.replace(output_path)
+        return True
+    except Exception as e:
+        print(f"    ffmpeg 合成失败，回退传统模式: {e}")
+        return False
+    finally:
+        try:
+            filt_path.unlink(missing_ok=True)
+        except Exception:
+            pass
+        if tmp.exists() and not output_path.exists():
+            tmp.unlink(missing_ok=True)
 
 
 def process_user(session: requests.Session, username: str, folder_name: str, mode: str = "quick") -> None:
