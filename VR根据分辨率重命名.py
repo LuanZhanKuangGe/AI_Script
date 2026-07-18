@@ -36,7 +36,7 @@ UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like 
 SUPPORTED_STUDIOS = {"darkroomvr", "18vr", "babevr", "badoinkvr", "czechvr", "czechvrfetish", "deepinsex", "fuckpassvr", "hamezo", "jimmydraws", "kinky-girls-berlin", "lethalhardcorevr", "littlecapricevr"}
 
 FILENAME_RE = re.compile(
-    r'^\[(.+?)\]\s*(?:\[(\d{8})\]\s*)?(?:\[(\d+k)\]\s*)?(.+?)\.mp4$', re.IGNORECASE)
+    r'^\[(.+?)\]\s*(?:\[(\d{8})\]\s*)?(?:\[(\d+k)\]\s*)?(.+?)\.(mp4|mov)$', re.IGNORECASE)
 
 
 def _fetch(url):
@@ -215,7 +215,7 @@ def rename_videos_with_resolution():
         return
 
     for filename in sorted(os.listdir(target_dir)):
-        if not filename.lower().endswith('.mp4'):
+        if not (filename.lower().endswith('.mp4') or filename.lower().endswith('.mov')):
             continue
         m = FILENAME_RE.match(filename)
         if not m:
@@ -224,6 +224,7 @@ def rename_videos_with_resolution():
         date_str = m.group(2)
         res = m.group(3)
         slug = m.group(4)
+        ext = m.group(5)
 
         if studio not in SUPPORTED_STUDIOS:
             continue
@@ -240,7 +241,7 @@ def rename_videos_with_resolution():
         if date_str is not None:
             if res == m.group(3):
                 continue
-            new_name = f"[{studio}] [{date_str}] [{res}] {slug}.mp4"
+            new_name = f"[{studio}] [{date_str}] [{res}] {slug}.{ext}"
         else:
             print(f"处理: {filename}")
             fetcher = STUDIO_FETCHERS[studio]
@@ -248,7 +249,7 @@ def rename_videos_with_resolution():
             if date_str is None:
                 print(f"  无法获取日期: {filename}")
                 continue
-            new_name = f"[{studio}] [{date_str}] [{res}] {final_slug}.mp4"
+            new_name = f"[{studio}] [{date_str}] [{res}] {final_slug}.{ext}"
 
         if new_name == filename:
             continue
