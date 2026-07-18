@@ -31,7 +31,7 @@ MONTH_MAP = {
 
 UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 
-SUPPORTED_STUDIOS = {"darkroomvr", "18vr"}
+SUPPORTED_STUDIOS = {"darkroomvr", "18vr", "babevr"}
 
 FILENAME_RE = re.compile(
     r'^\[(.+?)\]\s*(?:\[(\d{8})\]\s*)?(?:\[(\d+k)\]\s*)?(.+?)\.mp4$', re.IGNORECASE)
@@ -66,13 +66,13 @@ def _darkroomvr_info(slug):
     return final_slug, f"{year:04d}{mon:02d}{day:02d}"
 
 
-def _18vr_info(slug):
-    resp = _fetch(f"https://18vr.com/vrpornvideo/{slug.replace('-', '_')}")
+def _badoink_info(slug, base_url):
+    resp = _fetch(f"{base_url}/vrpornvideo/{slug.replace('-', '_')}")
     if resp is None or resp.status_code != 200:
         return None, None
     m = re.search(r'/vrpornvideo/([^/?]+?)/?$', resp.url)
     final_slug = m.group(1).replace('_', '-') if m else slug
-    m = re.search(r'"uploadDate":\s*"(\d{4})-(\d{2})-(\d{2})"', resp.text)
+    m = re.search(r'"uploadDate":\s*"(\d{4})-(\d{2})-(\d{2})', resp.text)
     if not m:
         m = re.search(r'content="(\d{4})-(\d{2})-(\d{2})T', resp.text)
     if not m:
@@ -82,7 +82,8 @@ def _18vr_info(slug):
 
 STUDIO_FETCHERS = {
     "darkroomvr": _darkroomvr_info,
-    "18vr": _18vr_info,
+    "18vr": lambda slug: _badoink_info(slug, "https://18vr.com"),
+    "babevr": lambda slug: _badoink_info(slug, "https://babevr.com"),
 }
 
 
