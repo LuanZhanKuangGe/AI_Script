@@ -33,7 +33,7 @@ MONTH_MAP = {
 
 UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 
-SUPPORTED_STUDIOS = {"darkroomvr", "18vr", "babevr", "badoinkvr", "czechvr", "czechvrfetish", "deepinsex", "fuckpassvr", "hamezo", "jimmydraws"}
+SUPPORTED_STUDIOS = {"darkroomvr", "18vr", "babevr", "badoinkvr", "czechvr", "czechvrfetish", "deepinsex", "fuckpassvr", "hamezo", "jimmydraws", "kinky-girls-berlin"}
 
 FILENAME_RE = re.compile(
     r'^\[(.+?)\]\s*(?:\[(\d{8})\]\s*)?(?:\[(\d+k)\]\s*)?(.+?)\.mp4$', re.IGNORECASE)
@@ -150,6 +150,18 @@ def _jimmydraws_info(slug):
     return slug, f"{m.group(3)}{m.group(2)}{m.group(1)}"
 
 
+def _kinky_girls_berlin_info(slug):
+    resp = _fetch(f"https://kinkygirlsberlin.com/{slug}")
+    if resp is None or resp.status_code != 200:
+        return None, None
+    if "Not found" in resp.text[:500]:
+        return slug, None
+    m = re.search(r'publish_date\\?":\s*\\?"(\d{4})-(\d{2})-(\d{2})', resp.text)
+    if not m:
+        return slug, None
+    return slug, f"{m.group(1)}{m.group(2)}{m.group(3)}"
+
+
 STUDIO_FETCHERS = {
     "darkroomvr": _darkroomvr_info,
     "18vr": lambda slug: _badoink_info(slug, "https://18vr.com"),
@@ -161,6 +173,7 @@ STUDIO_FETCHERS = {
     "fuckpassvr": lambda slug: _dated_slug_by_short_month(slug, "https://www.fuckpassvr.com", "video/{slug}"),
     "hamezo": _hamezo_info,
     "jimmydraws": _jimmydraws_info,
+    "kinky-girls-berlin": _kinky_girls_berlin_info,
 }
 
 
