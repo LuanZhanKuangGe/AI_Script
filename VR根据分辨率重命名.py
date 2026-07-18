@@ -34,7 +34,7 @@ MONTH_MAP = {
 
 UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 
-SUPPORTED_STUDIOS = {"darkroomvr", "18vr", "babevr", "badoinkvr", "czechvr", "czechvrfetish", "czechvrcasting", "deepinsex", "fuckpassvr", "hamezo", "jimmydraws", "kinky-girls-berlin", "lethalhardcorevr", "littlecapricevr", "lustreality", "migotovr", "milfvr", "no2studiovr", "porncornvr", "povcentralvr", "povr", "realjamvr", "realitylovers", "sexbabesvr", "sexlikereal", "stasyqvr", "tmwvrnet", "virtualrealporn", "virtualtaboo", "vrallure", "vrbangers", "vrconk", "vrcosplayx", "vrcucking", "vredging", "vrhush", "vrixxens", "vrlatina", "vrpornnow", "vrplayful", "vrspy", "arporn"}
+SUPPORTED_STUDIOS = {"darkroomvr", "18vr", "babevr", "badoinkvr", "czechvr", "czechvrfetish", "czechvrcasting", "deepinsex", "fuckpassvr", "hamezo", "jimmydraws", "kinky-girls-berlin", "lethalhardcorevr", "littlecapricevr", "lustreality", "migotovr", "milfvr", "no2studiovr", "porncornvr", "povcentralvr", "povr", "realjamvr", "realitylovers", "sexbabesvr", "sexlikereal", "stasyqvr", "tmwvrnet", "virtualrealporn", "virtualtaboo", "vrallure", "vrbangers", "vrconk", "vrcosplayx", "vrcucking", "vredging", "vrhush", "vrixxens", "vrlatina", "vrpornnow", "vrplayful", "vrspy", "arporn", "wankzvr"}
 
 FILENAME_RE = re.compile(
     r'^\[(.+?)\]\s*(?:\[(\d{8})\]\s*)?(?:\[(\d+k)\]\s*)?(.+?)\.(mp4|mov)$', re.IGNORECASE)
@@ -398,6 +398,38 @@ def _vrbangers_info(slug, base_url="https://vrbangers.com"):
     return slug, f"{m.group(1)}{m.group(2)}{m.group(3)}"
 
 
+def _wankzvr_info(slug):
+    known = {
+        "semen-demons": "3887717",
+        "wankzvr-car-wash": "4434385",
+        "zombie-slayers": "2909901",
+        "halloween-house-party-pickle-dick": "5507033",
+        "the-wanking-dead-doctor-s-orders": "5151037",
+        "the-wanking-dead-return-of-the-slayer": "5151035",
+        "the-wanking-dead-special-injection": "5151031",
+        "a-wankzmas-carol": "5392657",
+        "big-dong-the-witch-is-fed": "5353419",
+        "dean-of-admissionary": "5671475",
+        "jumpin-jack-flashin": "6347051",
+        "queen-of-the-ring": "6317979",
+        "summer-lovin": "6313887",
+        "the-customer-is-always-tight": "6330549",
+        "the-marks-of-the-beast": "6331221",
+        "we-all-cream-for-halloween": "6336545",
+        "earning-the-d": "6349267",
+    }
+    vid = known.get(slug)
+    if not vid:
+        return None, None
+    resp = _fetch(f"https://www.wankzvr.com/{slug}-{vid}")
+    if resp is None or resp.status_code != 200:
+        return slug, None
+    m = re.search(r'"uploadDate":"(\d{4})-(\d{2})-(\d{2})', resp.text)
+    if not m:
+        return slug, None
+    return slug, f"{m.group(1)}{m.group(2)}{m.group(3)}"
+
+
 STUDIO_FETCHERS = {
     "darkroomvr": _darkroomvr_info,
     "18vr": lambda slug: _badoink_info(slug, "https://18vr.com"),
@@ -440,6 +472,7 @@ STUDIO_FETCHERS = {
     "vrplayful": _slr_info,
     "vrspy": lambda slug: _vrbangers_info(slug, "https://www.vrspy.com"),
     "arporn": lambda slug: _vrbangers_info(slug, "https://arporn.com"),
+    "wankzvr": _wankzvr_info,
 }
 
 
