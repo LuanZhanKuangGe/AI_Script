@@ -33,7 +33,7 @@ MONTH_MAP = {
 
 UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 
-SUPPORTED_STUDIOS = {"darkroomvr", "18vr", "babevr", "badoinkvr", "czechvr", "czechvrfetish", "deepinsex", "fuckpassvr", "hamezo", "jimmydraws", "kinky-girls-berlin", "lethalhardcorevr", "littlecapricevr", "lustreality", "migotovr"}
+SUPPORTED_STUDIOS = {"darkroomvr", "18vr", "babevr", "badoinkvr", "czechvr", "czechvrfetish", "deepinsex", "fuckpassvr", "hamezo", "jimmydraws", "kinky-girls-berlin", "lethalhardcorevr", "littlecapricevr", "lustreality", "migotovr", "milfvr"}
 
 FILENAME_RE = re.compile(
     r'^\[(.+?)\]\s*(?:\[(\d{8})\]\s*)?(?:\[(\d+k)\]\s*)?(.+?)\.(mp4|mov)$', re.IGNORECASE)
@@ -160,6 +160,21 @@ def _vrporn_info(slug):
     return slug, f"{m.group(1)}{m.group(2)}{m.group(3)}"
 
 
+def _milfvr_info(slug):
+    resp = _fetch(f"https://www.milfvr.com/{slug}")
+    if resp is None or resp.status_code != 200:
+        return None, None
+    m = re.search(r'(\d{1,2})\s+([A-Za-z]+),\s+(\d{4})', resp.text)
+    if not m:
+        return slug, None
+    mon = MONTH_MAP.get(m.group(2).lower())
+    day = int(m.group(1))
+    year = int(m.group(3))
+    if mon is None:
+        return slug, None
+    return slug, f"{year:04d}{mon:02d}{day:02d}"
+
+
 def _lustreality_info(slug):
     resp = _fetch(f"https://lustreality.com/en/{slug}")
     if resp is None or resp.status_code != 200:
@@ -228,6 +243,7 @@ STUDIO_FETCHERS = {
     "littlecapricevr": _littlecapricevr_info,
     "lustreality": _lustreality_info,
     "migotovr": _vrporn_info,
+    "milfvr": _milfvr_info,
 }
 
 
