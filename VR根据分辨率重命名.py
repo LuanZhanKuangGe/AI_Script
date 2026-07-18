@@ -1,6 +1,7 @@
 import os
 import re
 import time
+from urllib.parse import quote
 
 import cv2
 import requests
@@ -33,7 +34,7 @@ MONTH_MAP = {
 
 UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 
-SUPPORTED_STUDIOS = {"darkroomvr", "18vr", "babevr", "badoinkvr", "czechvr", "czechvrfetish", "czechvrcasting", "deepinsex", "fuckpassvr", "hamezo", "jimmydraws", "kinky-girls-berlin", "lethalhardcorevr", "littlecapricevr", "lustreality", "migotovr", "milfvr", "no2studiovr", "porncornvr", "povcentralvr", "povr", "realjamvr", "realitylovers", "sexbabesvr", "sexlikereal", "stasyqvr", "tmwvrnet", "virtualrealporn", "virtualtaboo", "vrallure", "vrbangers", "vrconk", "vrcosplayx", "vrcucking", "vredging", "vrhush", "vrixxens", "vrlatina"}
+SUPPORTED_STUDIOS = {"darkroomvr", "18vr", "babevr", "badoinkvr", "czechvr", "czechvrfetish", "czechvrcasting", "deepinsex", "fuckpassvr", "hamezo", "jimmydraws", "kinky-girls-berlin", "lethalhardcorevr", "littlecapricevr", "lustreality", "migotovr", "milfvr", "no2studiovr", "porncornvr", "povcentralvr", "povr", "realjamvr", "realitylovers", "sexbabesvr", "sexlikereal", "stasyqvr", "tmwvrnet", "virtualrealporn", "virtualtaboo", "vrallure", "vrbangers", "vrconk", "vrcosplayx", "vrcucking", "vredging", "vrhush", "vrixxens", "vrlatina", "vrpornnow"}
 
 FILENAME_RE = re.compile(
     r'^\[(.+?)\]\s*(?:\[(\d{8})\]\s*)?(?:\[(\d+k)\]\s*)?(.+?)\.(mp4|mov)$', re.IGNORECASE)
@@ -260,7 +261,7 @@ def _littlecapricevr_info(slug):
 
 
 def _slr_info(slug):
-    resp = _fetch(f"https://www.sexlikereal.com/scenes/{slug}")
+    resp = _fetch(f"https://www.sexlikereal.com/scenes/{quote(slug)}")
     if resp is not None and resp.status_code == 200:
         m = re.search(r'([A-Z][a-z]+)\s+(\d{1,2}),\s+(\d{4})', resp.text)
         if m:
@@ -269,7 +270,7 @@ def _slr_info(slug):
             year = int(m.group(3))
             if mon is not None:
                 return slug, f"{year:04d}{mon:02d}{day:02d}"
-    resp = _fetch(f"https://www.sexlikereal.com/search?q={slug}")
+    resp = _fetch(f"https://www.sexlikereal.com/search?q={quote(slug)}")
     if resp is None or resp.status_code != 200:
         return None, None
     scenes = [s for s in set(re.findall(r'/scenes/([^"\'<>\s?#]+)', resp.text)) if not s.startswith("trending")]
@@ -435,6 +436,7 @@ STUDIO_FETCHERS = {
     "vrhush": _vrhush_info,
     "vrixxens": _vrixxens_info,
     "vrlatina": _vrlatina_info,
+    "vrpornnow": _slr_info,
 }
 
 
