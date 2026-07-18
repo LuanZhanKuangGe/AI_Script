@@ -33,7 +33,7 @@ MONTH_MAP = {
 
 UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 
-SUPPORTED_STUDIOS = {"darkroomvr", "18vr", "babevr", "badoinkvr", "czechvr", "czechvrfetish", "deepinsex", "fuckpassvr", "hamezo"}
+SUPPORTED_STUDIOS = {"darkroomvr", "18vr", "babevr", "badoinkvr", "czechvr", "czechvrfetish", "deepinsex", "fuckpassvr", "hamezo", "jimmydraws"}
 
 FILENAME_RE = re.compile(
     r'^\[(.+?)\]\s*(?:\[(\d{8})\]\s*)?(?:\[(\d+k)\]\s*)?(.+?)\.mp4$', re.IGNORECASE)
@@ -137,6 +137,19 @@ def _hamezo_info(slug):
     return slug, f"{year:04d}{mon:02d}{day:02d}"
 
 
+def _jimmydraws_info(slug):
+    headers = {"User-Agent": UA}
+    url = f"https://jimmydrawsvr.com/{slug}"
+    s = requests.Session()
+    s.headers.update(headers)
+    s.post(url, data={"confirm": "yes"}, timeout=30, allow_redirects=True)
+    resp = s.get(url, timeout=30)
+    m = re.search(r'Date:</span></td><td>(\d{2})/(\d{2})/(\d{4})', resp.text)
+    if not m:
+        return slug, None
+    return slug, f"{m.group(3)}{m.group(2)}{m.group(1)}"
+
+
 STUDIO_FETCHERS = {
     "darkroomvr": _darkroomvr_info,
     "18vr": lambda slug: _badoink_info(slug, "https://18vr.com"),
@@ -147,6 +160,7 @@ STUDIO_FETCHERS = {
     "deepinsex": lambda slug: _dated_slug_by_short_month(slug, "https://deepinsex.com"),
     "fuckpassvr": lambda slug: _dated_slug_by_short_month(slug, "https://www.fuckpassvr.com", "video/{slug}"),
     "hamezo": _hamezo_info,
+    "jimmydraws": _jimmydraws_info,
 }
 
 
