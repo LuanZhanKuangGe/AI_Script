@@ -33,7 +33,7 @@ MONTH_MAP = {
 
 UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 
-SUPPORTED_STUDIOS = {"darkroomvr", "18vr", "babevr", "badoinkvr", "czechvr", "czechvrfetish", "czechvrcasting", "deepinsex", "fuckpassvr", "hamezo", "jimmydraws", "kinky-girls-berlin", "lethalhardcorevr", "littlecapricevr", "lustreality", "migotovr", "milfvr", "no2studiovr", "porncornvr", "povcentralvr", "povr", "realjamvr", "realitylovers", "sexbabesvr", "sexlikereal", "stasyqvr", "tmwvrnet", "virtualrealporn", "virtualtaboo", "vrallure", "vrbangers", "vrconk", "vrcosplayx", "vrcucking"}
+SUPPORTED_STUDIOS = {"darkroomvr", "18vr", "babevr", "badoinkvr", "czechvr", "czechvrfetish", "czechvrcasting", "deepinsex", "fuckpassvr", "hamezo", "jimmydraws", "kinky-girls-berlin", "lethalhardcorevr", "littlecapricevr", "lustreality", "migotovr", "milfvr", "no2studiovr", "porncornvr", "povcentralvr", "povr", "realjamvr", "realitylovers", "sexbabesvr", "sexlikereal", "stasyqvr", "tmwvrnet", "virtualrealporn", "virtualtaboo", "vrallure", "vrbangers", "vrconk", "vrcosplayx", "vrcucking", "vredging"}
 
 FILENAME_RE = re.compile(
     r'^\[(.+?)\]\s*(?:\[(\d{8})\]\s*)?(?:\[(\d+k)\]\s*)?(.+?)\.(mp4|mov)$', re.IGNORECASE)
@@ -272,16 +272,16 @@ def _slr_info(slug):
     resp = _fetch(f"https://www.sexlikereal.com/search?q={slug}")
     if resp is None or resp.status_code != 200:
         return None, None
-    scenes = set(re.findall(r'/scenes/([^"\'<>\s]+)', resp.text))
+    scenes = [s for s in set(re.findall(r'/scenes/([^"\'<>\s?#]+)', resp.text)) if not s.startswith("trending")]
     def normalize(s):
         return re.sub(r"[^a-z0-9]", "", s.lower())
-    candidates = [(s, len(s)) for s in scenes if normalize(slug) in normalize(s)]
+    candidates = [s for s in scenes if normalize(slug) in normalize(s)]
     if not candidates:
-        candidates = [(s, len(s)) for s in scenes]
+        words = set(slug.replace("-", "_").replace("'", "").split("_"))
+        candidates = sorted(scenes, key=lambda s: -sum(w in normalize(s) for w in words))
     if not candidates:
         return None, None
-    candidates.sort(key=lambda x: x[1])
-    best_slug = candidates[0][0]
+    best_slug = candidates[0]
     resp = _fetch(f"https://www.sexlikereal.com/scenes/{best_slug}")
     if resp is None or resp.status_code != 200:
         return best_slug, None
@@ -398,6 +398,7 @@ STUDIO_FETCHERS = {
     "vrconk": lambda slug: _vrbangers_info(slug, "https://vrconk.com"),
     "vrcosplayx": _vrcosplayx_info,
     "vrcucking": _slr_info,
+    "vredging": _slr_info,
 }
 
 
