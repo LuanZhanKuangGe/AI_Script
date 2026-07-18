@@ -34,7 +34,7 @@ MONTH_MAP = {
 
 UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 
-SUPPORTED_STUDIOS = {"darkroomvr", "18vr", "babevr", "badoinkvr", "czechvr", "czechvrfetish", "czechvrcasting", "deepinsex", "fuckpassvr", "hamezo", "jimmydraws", "kinky-girls-berlin", "lethalhardcorevr", "littlecapricevr", "lustreality", "migotovr", "milfvr", "no2studiovr", "porncornvr", "povcentralvr", "povr", "realjamvr", "realitylovers", "sexbabesvr", "sexlikereal", "stasyqvr", "tmwvrnet", "virtualrealporn", "virtualtaboo", "vrallure", "vrbangers", "vrconk", "vrcosplayx", "vrcucking", "vredging", "vrhush", "vrixxens", "vrlatina", "vrpornnow", "vrplayful", "vrspy"}
+SUPPORTED_STUDIOS = {"darkroomvr", "18vr", "babevr", "badoinkvr", "czechvr", "czechvrfetish", "czechvrcasting", "deepinsex", "fuckpassvr", "hamezo", "jimmydraws", "kinky-girls-berlin", "lethalhardcorevr", "littlecapricevr", "lustreality", "migotovr", "milfvr", "no2studiovr", "porncornvr", "povcentralvr", "povr", "realjamvr", "realitylovers", "sexbabesvr", "sexlikereal", "stasyqvr", "tmwvrnet", "virtualrealporn", "virtualtaboo", "vrallure", "vrbangers", "vrconk", "vrcosplayx", "vrcucking", "vredging", "vrhush", "vrixxens", "vrlatina", "vrpornnow", "vrplayful", "vrspy", "arporn"}
 
 FILENAME_RE = re.compile(
     r'^\[(.+?)\]\s*(?:\[(\d{8})\]\s*)?(?:\[(\d+k)\]\s*)?(.+?)\.(mp4|mov)$', re.IGNORECASE)
@@ -439,6 +439,7 @@ STUDIO_FETCHERS = {
     "vrpornnow": _slr_info,
     "vrplayful": _slr_info,
     "vrspy": lambda slug: _vrbangers_info(slug, "https://www.vrspy.com"),
+    "arporn": lambda slug: _vrbangers_info(slug, "https://arporn.com"),
 }
 
 
