@@ -33,7 +33,7 @@ MONTH_MAP = {
 
 UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 
-SUPPORTED_STUDIOS = {"darkroomvr", "18vr", "babevr", "badoinkvr", "czechvr", "czechvrfetish", "deepinsex", "fuckpassvr", "hamezo", "jimmydraws", "kinky-girls-berlin"}
+SUPPORTED_STUDIOS = {"darkroomvr", "18vr", "babevr", "badoinkvr", "czechvr", "czechvrfetish", "deepinsex", "fuckpassvr", "hamezo", "jimmydraws", "kinky-girls-berlin", "lethalhardcorevr"}
 
 FILENAME_RE = re.compile(
     r'^\[(.+?)\]\s*(?:\[(\d{8})\]\s*)?(?:\[(\d+k)\]\s*)?(.+?)\.mp4$', re.IGNORECASE)
@@ -150,6 +150,21 @@ def _jimmydraws_info(slug):
     return slug, f"{m.group(3)}{m.group(2)}{m.group(1)}"
 
 
+def _slr_info(slug):
+    resp = _fetch(f"https://www.sexlikereal.com/scenes/{slug}")
+    if resp is None or resp.status_code != 200:
+        return None, None
+    m = re.search(r'([A-Z][a-z]+)\s+(\d{1,2}),\s+(\d{4})', resp.text)
+    if not m:
+        return slug, None
+    mon = MONTH_MAP.get(m.group(1).lower())
+    day = int(m.group(2))
+    year = int(m.group(3))
+    if mon is None:
+        return slug, None
+    return slug, f"{year:04d}{mon:02d}{day:02d}"
+
+
 def _kinky_girls_berlin_info(slug):
     resp = _fetch(f"https://kinkygirlsberlin.com/{slug}")
     if resp is None or resp.status_code != 200:
@@ -174,6 +189,7 @@ STUDIO_FETCHERS = {
     "hamezo": _hamezo_info,
     "jimmydraws": _jimmydraws_info,
     "kinky-girls-berlin": _kinky_girls_berlin_info,
+    "lethalhardcorevr": _slr_info,
 }
 
 
