@@ -33,7 +33,7 @@ MONTH_MAP = {
 
 UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 
-SUPPORTED_STUDIOS = {"darkroomvr", "18vr", "babevr", "badoinkvr", "czechvr", "czechvrfetish", "deepinsex", "fuckpassvr"}
+SUPPORTED_STUDIOS = {"darkroomvr", "18vr", "babevr", "badoinkvr", "czechvr", "czechvrfetish", "deepinsex", "fuckpassvr", "hamezo"}
 
 FILENAME_RE = re.compile(
     r'^\[(.+?)\]\s*(?:\[(\d{8})\]\s*)?(?:\[(\d+k)\]\s*)?(.+?)\.mp4$', re.IGNORECASE)
@@ -122,6 +122,21 @@ def _dated_slug_by_short_month(slug, base_url, path_template="{slug}"):
     return final_slug, f"{year:04d}{mon:02d}{day:02d}"
 
 
+def _hamezo_info(slug):
+    resp = _fetch(f"https://hamezo.com/{slug}/")
+    if resp is None or resp.status_code != 200:
+        return None, None
+    m = re.search(r'([A-Z][a-z]+)\s+(\d{1,2})(?:st|nd|rd|th)?,?\s*(\d{4})', resp.text)
+    if not m:
+        return slug, None
+    mon = MONTH_MAP.get(m.group(1).lower())
+    day = int(m.group(2))
+    year = int(m.group(3))
+    if mon is None:
+        return slug, None
+    return slug, f"{year:04d}{mon:02d}{day:02d}"
+
+
 STUDIO_FETCHERS = {
     "darkroomvr": _darkroomvr_info,
     "18vr": lambda slug: _badoink_info(slug, "https://18vr.com"),
@@ -131,6 +146,7 @@ STUDIO_FETCHERS = {
     "czechvrfetish": lambda slug: _czechvr_info(slug, "https://www.czechvrfetish.com"),
     "deepinsex": lambda slug: _dated_slug_by_short_month(slug, "https://deepinsex.com"),
     "fuckpassvr": lambda slug: _dated_slug_by_short_month(slug, "https://www.fuckpassvr.com", "video/{slug}"),
+    "hamezo": _hamezo_info,
 }
 
 
