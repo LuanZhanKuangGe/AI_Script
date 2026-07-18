@@ -33,7 +33,7 @@ MONTH_MAP = {
 
 UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 
-SUPPORTED_STUDIOS = {"darkroomvr", "18vr", "babevr", "badoinkvr", "czechvr", "czechvrfetish", "czechvrcasting", "deepinsex", "fuckpassvr", "hamezo", "jimmydraws", "kinky-girls-berlin", "lethalhardcorevr", "littlecapricevr", "lustreality", "migotovr", "milfvr", "no2studiovr", "porncornvr", "povcentralvr", "povr", "realjamvr", "realitylovers", "sexbabesvr", "sexlikereal", "stasyqvr", "tmwvrnet"}
+SUPPORTED_STUDIOS = {"darkroomvr", "18vr", "babevr", "badoinkvr", "czechvr", "czechvrfetish", "czechvrcasting", "deepinsex", "fuckpassvr", "hamezo", "jimmydraws", "kinky-girls-berlin", "lethalhardcorevr", "littlecapricevr", "lustreality", "migotovr", "milfvr", "no2studiovr", "porncornvr", "povcentralvr", "povr", "realjamvr", "realitylovers", "sexbabesvr", "sexlikereal", "stasyqvr", "tmwvrnet", "virtualrealporn"}
 
 FILENAME_RE = re.compile(
     r'^\[(.+?)\]\s*(?:\[(\d{8})\]\s*)?(?:\[(\d+k)\]\s*)?(.+?)\.(mp4|mov)$', re.IGNORECASE)
@@ -319,6 +319,16 @@ def _tmwvrnet_info(slug):
     return slug, f"{year}{mm}{dd}"
 
 
+def _virtualrealporn_info(slug):
+    resp = _fetch(f"https://virtualrealporn.com/vr-porn-video/{slug}/")
+    if resp is None or resp.status_code != 200:
+        return None, None
+    m = re.search(r'"uploadDate":"(\d{4})-(\d{2})-(\d{2})', resp.text)
+    if not m:
+        return slug, None
+    return slug, f"{m.group(1)}{m.group(2)}{m.group(3)}"
+
+
 STUDIO_FETCHERS = {
     "darkroomvr": _darkroomvr_info,
     "18vr": lambda slug: _badoink_info(slug, "https://18vr.com"),
@@ -346,6 +356,7 @@ STUDIO_FETCHERS = {
     "sexlikereal": _slr_info,
     "stasyqvr": _slr_info,
     "tmwvrnet": _tmwvrnet_info,
+    "virtualrealporn": _virtualrealporn_info,
 }
 
 
