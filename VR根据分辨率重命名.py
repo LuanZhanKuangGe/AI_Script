@@ -33,7 +33,7 @@ MONTH_MAP = {
 
 UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 
-SUPPORTED_STUDIOS = {"darkroomvr", "18vr", "babevr", "badoinkvr", "czechvr", "czechvrfetish", "czechvrcasting", "deepinsex", "fuckpassvr", "hamezo", "jimmydraws", "kinky-girls-berlin", "lethalhardcorevr", "littlecapricevr", "lustreality", "migotovr", "milfvr", "no2studiovr", "porncornvr", "povcentralvr", "povr"}
+SUPPORTED_STUDIOS = {"darkroomvr", "18vr", "babevr", "badoinkvr", "czechvr", "czechvrfetish", "czechvrcasting", "deepinsex", "fuckpassvr", "hamezo", "jimmydraws", "kinky-girls-berlin", "lethalhardcorevr", "littlecapricevr", "lustreality", "migotovr", "milfvr", "no2studiovr", "porncornvr", "povcentralvr", "povr", "realitylovers"}
 
 FILENAME_RE = re.compile(
     r'^\[(.+?)\]\s*(?:\[(\d{8})\]\s*)?(?:\[(\d+k)\]\s*)?(.+?)\.(mp4|mov)$', re.IGNORECASE)
@@ -190,6 +190,36 @@ def _porncornvr_info(slug):
     return slug, f"{year:04d}{mon:02d}{day:02d}"
 
 
+def _realitylovers_info(slug):
+    # slug format: {id}-{title}, e.g. 10561502-anal-angels
+    parts = slug.split("-", 1)
+    if not parts[0].isdigit():
+        return None, None
+    vid_id = parts[0]
+    title = parts[1] if len(parts) > 1 else slug
+    path = f"{vid_id}/{title}"
+    resp = _fetch(f"https://realitylovers.com/vd/{path}/")
+    if resp is None or resp.status_code != 200:
+        # Age gate needs agreedToDisclaimer cookie
+        import requests as _req
+        s = _req.Session()
+        s.headers.update({"User-Agent": UA})
+        s.cookies.set("agreedToDisclaimer", "true", domain="realitylovers.com")
+        try:
+            resp = s.get(f"https://realitylovers.com/vd/{path}/", timeout=30)
+        except Exception:
+            return None, None
+    m = re.search(r"videoReleaseDate:\s*'([A-Za-z]+)\s+(\d{1,2}),\s+(\d{4})'", resp.text)
+    if not m:
+        return slug, None
+    mon = MONTH_MAP.get(m.group(1).lower())
+    day = int(m.group(2))
+    year = int(m.group(3))
+    if mon is None:
+        return slug, None
+    return slug, f"{year:04d}{mon:02d}{day:02d}"
+
+
 def _povr_info(slug):
     resp = _fetch(f"https://povr.com/vr-porn/{slug}")
     if resp is None or resp.status_code != 200:
@@ -278,6 +308,7 @@ STUDIO_FETCHERS = {
     "porncornvr": _porncornvr_info,
     "povcentralvr": _slr_info,
     "povr": _povr_info,
+    "realitylovers": _realitylovers_info,
 }
 
 
