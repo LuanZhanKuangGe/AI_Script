@@ -33,7 +33,7 @@ MONTH_MAP = {
 
 UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 
-SUPPORTED_STUDIOS = {"darkroomvr", "18vr", "babevr", "badoinkvr", "czechvr", "czechvrfetish"}
+SUPPORTED_STUDIOS = {"darkroomvr", "18vr", "babevr", "badoinkvr", "czechvr", "czechvrfetish", "deepinsex"}
 
 FILENAME_RE = re.compile(
     r'^\[(.+?)\]\s*(?:\[(\d{8})\]\s*)?(?:\[(\d+k)\]\s*)?(.+?)\.mp4$', re.IGNORECASE)
@@ -104,6 +104,21 @@ def _czechvr_info(slug, base_url="https://www.czechvr.com"):
     return final_slug, f"{year:04d}{mon:02d}{day:02d}"
 
 
+def _deepinsex_info(slug):
+    resp = _fetch(f"https://deepinsex.com/{slug}")
+    if resp is None or resp.status_code != 200:
+        return None, None
+    m = re.search(r'([A-Z][a-z]{2}\s+\d{1,2},\s*\d{4})', resp.text)
+    if not m:
+        return slug, None
+    mon = MONTH_MAP.get(m.group(1).split()[0].lower())
+    day = int(m.group(1).split()[1].rstrip(','))
+    year = int(m.group(1).split()[2])
+    if mon is None:
+        return slug, None
+    return slug, f"{year:04d}{mon:02d}{day:02d}"
+
+
 STUDIO_FETCHERS = {
     "darkroomvr": _darkroomvr_info,
     "18vr": lambda slug: _badoink_info(slug, "https://18vr.com"),
@@ -111,6 +126,7 @@ STUDIO_FETCHERS = {
     "badoinkvr": lambda slug: _badoink_info(slug, "https://badoinkvr.com"),
     "czechvr": _czechvr_info,
     "czechvrfetish": lambda slug: _czechvr_info(slug, "https://www.czechvrfetish.com"),
+    "deepinsex": _deepinsex_info,
 }
 
 
