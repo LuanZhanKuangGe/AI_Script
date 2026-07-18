@@ -33,7 +33,7 @@ MONTH_MAP = {
 
 UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 
-SUPPORTED_STUDIOS = {"darkroomvr", "18vr", "babevr", "badoinkvr", "czechvr"}
+SUPPORTED_STUDIOS = {"darkroomvr", "18vr", "babevr", "badoinkvr", "czechvr", "czechvrfetish"}
 
 FILENAME_RE = re.compile(
     r'^\[(.+?)\]\s*(?:\[(\d{8})\]\s*)?(?:\[(\d+k)\]\s*)?(.+?)\.mp4$', re.IGNORECASE)
@@ -82,12 +82,12 @@ def _badoink_info(slug, base_url):
     return final_slug, f"{m.group(1)}{m.group(2)}{m.group(3)}"
 
 
-def _czechvr_info(slug):
+def _czechvr_info(slug, base_url="https://www.czechvr.com"):
     mid = re.match(r'^(?:detail-)?(\d+)-(.+)$', slug)
     if not mid:
         print(f"  czechvr 文件名缺少视频ID: {slug}")
         return None, None
-    resp = _fetch(f"https://www.czechvr.com/detail-{mid.group(1)}-{mid.group(2)}")
+    resp = _fetch(f"{base_url}/detail-{mid.group(1)}-{mid.group(2)}")
     if resp is None or resp.status_code != 200:
         return None, None
     m = re.search(r'<div class="datum">\s*([A-Za-z]+)\s+(\d{1,2}),?\s*(\d{4})\s*</div>', resp.text)
@@ -110,6 +110,7 @@ STUDIO_FETCHERS = {
     "babevr": lambda slug: _badoink_info(slug, "https://babevr.com"),
     "badoinkvr": lambda slug: _badoink_info(slug, "https://badoinkvr.com"),
     "czechvr": _czechvr_info,
+    "czechvrfetish": lambda slug: _czechvr_info(slug, "https://www.czechvrfetish.com"),
 }
 
 
