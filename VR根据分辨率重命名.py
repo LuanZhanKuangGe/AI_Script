@@ -33,7 +33,7 @@ MONTH_MAP = {
 
 UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 
-SUPPORTED_STUDIOS = {"darkroomvr", "18vr", "babevr", "badoinkvr", "czechvr", "czechvrfetish", "czechvrcasting", "deepinsex", "fuckpassvr", "hamezo", "jimmydraws", "kinky-girls-berlin", "lethalhardcorevr", "littlecapricevr", "lustreality", "migotovr", "milfvr", "no2studiovr", "porncornvr", "povcentralvr", "povr", "realjamvr", "realitylovers"}
+SUPPORTED_STUDIOS = {"darkroomvr", "18vr", "babevr", "badoinkvr", "czechvr", "czechvrfetish", "czechvrcasting", "deepinsex", "fuckpassvr", "hamezo", "jimmydraws", "kinky-girls-berlin", "lethalhardcorevr", "littlecapricevr", "lustreality", "migotovr", "milfvr", "no2studiovr", "porncornvr", "povcentralvr", "povr", "realjamvr", "realitylovers", "sexbabesvr"}
 
 FILENAME_RE = re.compile(
     r'^\[(.+?)\]\s*(?:\[(\d{8})\]\s*)?(?:\[(\d+k)\]\s*)?(.+?)\.(mp4|mov)$', re.IGNORECASE)
@@ -194,6 +194,16 @@ def _realitylovers_info(slug):
     return None, None
 
 
+def _sexbabesvr_info(slug):
+    resp = _fetch(f"https://sexbabesvr.com/video/{slug}/")
+    if resp is None or resp.status_code != 200:
+        return None, None
+    m = re.search(r'"uploadDate":\s*"(\d{4})-(\d{2})-(\d{2})', resp.text)
+    if not m:
+        return slug, None
+    return slug, f"{m.group(1)}{m.group(2)}{m.group(3)}"
+
+
 def _realjamvr_info(slug):
     resp = _fetch(f"https://realjamvr.com/scene/{slug}/")
     if resp is None or resp.status_code != 200:
@@ -299,6 +309,7 @@ STUDIO_FETCHERS = {
     "povr": _povr_info,
     "realjamvr": _realjamvr_info,
     "realitylovers": _realitylovers_info,
+    "sexbabesvr": _sexbabesvr_info,
 }
 
 
