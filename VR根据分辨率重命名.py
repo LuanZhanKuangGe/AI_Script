@@ -33,7 +33,7 @@ MONTH_MAP = {
 
 UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 
-SUPPORTED_STUDIOS = {"darkroomvr", "18vr", "babevr", "badoinkvr", "czechvr", "czechvrfetish", "czechvrcasting", "deepinsex", "fuckpassvr", "hamezo", "jimmydraws", "kinky-girls-berlin", "lethalhardcorevr", "littlecapricevr", "lustreality", "migotovr", "milfvr", "no2studiovr", "porncornvr", "povcentralvr", "povr", "realjamvr", "realitylovers", "sexbabesvr"}
+SUPPORTED_STUDIOS = {"darkroomvr", "18vr", "babevr", "badoinkvr", "czechvr", "czechvrfetish", "czechvrcasting", "deepinsex", "fuckpassvr", "hamezo", "jimmydraws", "kinky-girls-berlin", "lethalhardcorevr", "littlecapricevr", "lustreality", "migotovr", "milfvr", "no2studiovr", "porncornvr", "povcentralvr", "povr", "realjamvr", "realitylovers", "sexbabesvr", "sexlikereal", "stasyqvr"}
 
 FILENAME_RE = re.compile(
     r'^\[(.+?)\]\s*(?:\[(\d{8})\]\s*)?(?:\[(\d+k)\]\s*)?(.+?)\.(mp4|mov)$', re.IGNORECASE)
@@ -261,17 +261,39 @@ def _littlecapricevr_info(slug):
 
 def _slr_info(slug):
     resp = _fetch(f"https://www.sexlikereal.com/scenes/{slug}")
+    if resp is not None and resp.status_code == 200:
+        m = re.search(r'([A-Z][a-z]+)\s+(\d{1,2}),\s+(\d{4})', resp.text)
+        if m:
+            mon = MONTH_MAP.get(m.group(1).lower())
+            day = int(m.group(2))
+            year = int(m.group(3))
+            if mon is not None:
+                return slug, f"{year:04d}{mon:02d}{day:02d}"
+    resp = _fetch(f"https://www.sexlikereal.com/search?q={slug}")
     if resp is None or resp.status_code != 200:
         return None, None
+    scenes = set(re.findall(r'/scenes/([^"\'<>\s]+)', resp.text))
+    def normalize(s):
+        return re.sub(r"[^a-z0-9]", "", s.lower())
+    candidates = [(s, len(s)) for s in scenes if normalize(slug) in normalize(s)]
+    if not candidates:
+        candidates = [(s, len(s)) for s in scenes]
+    if not candidates:
+        return None, None
+    candidates.sort(key=lambda x: x[1])
+    best_slug = candidates[0][0]
+    resp = _fetch(f"https://www.sexlikereal.com/scenes/{best_slug}")
+    if resp is None or resp.status_code != 200:
+        return best_slug, None
     m = re.search(r'([A-Z][a-z]+)\s+(\d{1,2}),\s+(\d{4})', resp.text)
     if not m:
-        return slug, None
+        return best_slug, None
     mon = MONTH_MAP.get(m.group(1).lower())
     day = int(m.group(2))
     year = int(m.group(3))
     if mon is None:
-        return slug, None
-    return slug, f"{year:04d}{mon:02d}{day:02d}"
+        return best_slug, None
+    return best_slug, f"{year:04d}{mon:02d}{day:02d}"
 
 
 def _kinky_girls_berlin_info(slug):
@@ -310,6 +332,8 @@ STUDIO_FETCHERS = {
     "realjamvr": _realjamvr_info,
     "realitylovers": _realitylovers_info,
     "sexbabesvr": _sexbabesvr_info,
+    "sexlikereal": _slr_info,
+    "stasyqvr": _slr_info,
 }
 
 
