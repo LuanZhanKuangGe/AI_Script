@@ -49,7 +49,23 @@ def main():
             total_deleted += 1
             print(f"已删除: {f}")
 
-    msg = f"清理完成！\n目录: {folder}\n已删除: {total_deleted} 个非视频文件\n已保留: {total_skipped} 个视频文件"
+    dirs = [d for d in folder_path.rglob('*') if d.is_dir()]
+    dirs.sort(key=lambda p: len(p.parts), reverse=True)
+    deleted_dirs = 0
+    for d in dirs:
+        if not d.exists():
+            continue
+        if not any(d.iterdir()):
+            d.rmdir()
+            deleted_dirs += 1
+            print(f"已删除空文件夹: {d}")
+
+    if not any(folder_path.iterdir()):
+        folder_path.rmdir()
+        deleted_dirs += 1
+        print(f"已删除空文件夹: {folder_path}")
+
+    msg = f"清理完成！\n目录: {folder}\n已删除: {total_deleted} 个非视频文件\n已保留: {total_skipped} 个视频文件\n已删除: {deleted_dirs} 个空文件夹"
     print(msg)
     messagebox.showinfo("清理完成", msg)
 
