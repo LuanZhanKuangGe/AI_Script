@@ -35,19 +35,43 @@ def main():
         print("未选择目录")
         return
 
-    folder_path = Path(folder)
+    folder_path = Path(folder).resolve()
     total_deleted = 0
-    total_skipped = 0
+    total_moved = 0
+    video_files = []
 
     for f in folder_path.rglob('*'):
         if not f.is_file():
             continue
         if f.suffix.lower() in VIDEO_EXTENSIONS:
-            total_skipped += 1
+            video_files.append(f)
         else:
             f.unlink()
             total_deleted += 1
             print(f"已删除: {f}")
+
+    for f in video_files:
+        rel = f.relative_to(folder_path)
+        if len(rel.parts) <= 2:
+            continue
+        top_sub = rel.parts[0]
+        dest = folder_path / top_sub / f.name
+        if dest == f:
+            continue
+        if dest.exists():
+            stem = dest.stem
+            suffix = dest.suffix
+            counter = 1
+            while True:
+                new_name = f"{stem} ({counter}){suffix}"
+                candidate = dest.with_name(new_name)
+                if not candidate.exists():
+                    dest = candidate
+                    break
+                counter += 1
+        f.rename(dest)
+        total_moved += 1
+        print(f"已移动: {f} -> {dest}")
 
     dirs = [d for d in folder_path.rglob('*') if d.is_dir()]
     dirs.sort(key=lambda p: len(p.parts), reverse=True)
@@ -65,7 +89,13 @@ def main():
         deleted_dirs += 1
         print(f"已删除空文件夹: {folder_path}")
 
-    msg = f"清理完成！\n目录: {folder}\n已删除: {total_deleted} 个非视频文件\n已保留: {total_skipped} 个视频文件\n已删除: {deleted_dirs} 个空文件夹"
+    msg = (
+        f"清理完成！\n"
+        f"目录: {folder}\n"
+        f"已删除: {total_deleted} 个非视频文件\n"
+        f"已移动: {total_moved} 个视频文件\n"
+        f"已删除: {deleted_dirs} 个空文件夹"
+    )
     print(msg)
     messagebox.showinfo("清理完成", msg)
 
