@@ -102,9 +102,10 @@ def print_stats(jav_path: Path, empty_folders, short_names, missing_images=None)
         print(f"    {i:3d}. {name:<40} {cnt:>5d}")
 
     if missing_images:
-        print(f"  缺少 fanart/poster ({len(missing_images)} 个)：")
-        for vid in missing_images:
-            print(f"    {vid}")
+        print(f"  缺少 fanart/poster ({len(missing_images)} 个)")
+        if isinstance(missing_images, list):
+            for vid in missing_images:
+                print(f"    {vid}")
 
 
 def scan_quick(jav_path: Path) -> None:
@@ -127,6 +128,7 @@ def scan_quick(jav_path: Path) -> None:
     print("[2/6] 扫描 JAV nfo (仅文件名)")
     jav_id = set()
     folder_dict = {}
+    missing_images = set()
     nfo_files = list(jav_path.rglob("*.nfo"))
     print(f"  共 {len(nfo_files)} 个nfo文件")
     for i, nfo in enumerate(nfo_files, 1):
@@ -137,7 +139,11 @@ def scan_quick(jav_path: Path) -> None:
         serial_id = nfo.stem.split("-")[0]
         if serial_id not in folder_dict:
             folder_dict[serial_id] = nfo.parent.name
-    print(f"  {len(jav_id)} 个ID，{len(folder_dict)} 个系列")
+        fanart = nfo.parent / f"{nfo.stem}-fanart.jpg"
+        poster = nfo.parent / f"{nfo.stem}-poster.jpg"
+        if not fanart.exists() or not poster.exists():
+            missing_images.add(vid)
+    print(f"  {len(jav_id)} 个ID，{len(missing_images)} 个缺少图片，{len(folder_dict)} 个系列")
 
     print("[3/6] 扫描 FC2")
     jav_id |= collect_ids(OTHER_PATHS[0][0], OTHER_PATHS[0][1], "FC2", fc2_processor)
@@ -149,7 +155,7 @@ def scan_quick(jav_path: Path) -> None:
     print("[6/6] 保存数据")
     save_data({"jav_id": list(jav_id), "jav_folder": folder_dict})
     print(f"  {len(jav_id)} 个ID，{len(folder_dict)} 个系列")
-    print_stats(jav_path, empty_folders, short_names)
+    print_stats(jav_path, empty_folders, short_names, missing_images)
     print("[JAV] 快速模式完成")
 
 
