@@ -121,7 +121,7 @@ HTML_PAGE = """<!DOCTYPE html>
 
     <section class="bg-slate-800 rounded-xl p-5 space-y-3 shadow-lg flex flex-col">
       <h2 class="text-lg font-semibold text-slate-200">下载状态</h2>
-      <pre id="output" class="bg-slate-900 rounded-lg p-4 flex-1 min-h-[60vh] overflow-auto text-xs font-mono text-emerald-300 whitespace-pre-wrap border border-slate-700"></pre>
+      <pre id="output" class="bg-slate-900 rounded-lg p-4 h-[60vh] overflow-auto text-xs font-mono text-emerald-300 whitespace-pre-wrap border border-slate-700"></pre>
     </section>
   </div>
 </div>
