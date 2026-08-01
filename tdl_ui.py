@@ -26,6 +26,22 @@ def stream_command(command):
     process.wait()
 
 
+def expand_url(url, count):
+    urls = []
+    if 'comment=' in url:
+        url_base = url.split("comment=")[0]
+        start = int(url.split("comment=")[1])
+        for i in range(start, start + count):
+            urls.append(f"{url_base}comment={i}")
+    else:
+        base_url = url.split("?")[0]
+        sub_url = ("/").join(base_url.split("/")[0:-1])
+        sub_index = int(base_url.split("/")[-1])
+        for i in range(count):
+            urls.append(f"{sub_url}/{sub_index + i}")
+    return urls
+
+
 def download_all(tasks_to_download, download_dir):
     if not tasks_to_download:
         yield "没有未下载的任务"
@@ -35,27 +51,13 @@ def download_all(tasks_to_download, download_dir):
 
     for task in tasks_to_download:
         url = task["url"]
-        count = task["count"]
         task["status"] = "下载中"
+        yield f"[{url}]\n"
         if 'comment=' in url:
-            url_base = url.split("comment=")[0]
-            start = int(url.split("comment=")[1])
-            stop = start + count
-            for i in range(start, stop):
-                full_url = f"{url_base}comment={i}"
-                yield f"[{full_url}]\n"
-                yield from stream_command(f'{TDL_COMMAND} -u "{full_url}"')
-                yield "\n" + "-" * 50 + "\n"
+            yield from stream_command(f'{TDL_COMMAND} -u "{url}"')
         else:
-            base_url = url.split("?")[0]
-            sub_url = ("/").join(base_url.split("/")[0:-1])
-            sub_index = int(base_url.split("/")[-1])
-            command = f'{TDL_COMMAND} --continue -d "{download_dir}"'
-            for i in range(count):
-                command += f' -u "{sub_url}/{sub_index + i}"'
-            yield f"[{base_url} x{count}]\n"
-            yield from stream_command(command)
-            yield "\n" + "-" * 50 + "\n"
+            yield from stream_command(f'{TDL_COMMAND} --continue -d "{download_dir}" -u "{url}"')
+        yield "\n" + "-" * 50 + "\n"
         task["status"] = "已下载"
 
 
@@ -101,7 +103,6 @@ HTML_PAGE = """<!DOCTYPE html>
             <thead class="bg-slate-700 text-slate-300 sticky top-0">
               <tr>
                 <th class="px-4 py-2 text-left">URL</th>
-                <th class="px-4 py-2 text-center w-20">数量</th>
                 <th class="px-4 py-2 text-center w-24">状态</th>
                 <th class="px-4 py-2 text-center w-20">操作</th>
               </tr>
@@ -143,13 +144,12 @@ const statusColors = {
 function renderTasks(list) {
   const body = document.getElementById('taskBody');
   if (!list.length) {
-    body.innerHTML = '<tr><td colspan="4" class="px-4 py-6 text-center text-slate-500">暂无任务</td></tr>';
+    body.innerHTML = '<tr><td colspan="3" class="px-4 py-6 text-center text-slate-500">暂无任务</td></tr>';
     return;
   }
   body.innerHTML = list.map((t, i) => `
     <tr class="hover:bg-slate-750">
       <td class="px-4 py-2 font-mono text-xs break-all">${escapeHtml(t.url)}</td>
-      <td class="px-4 py-2 text-center">${t.count}</td>
       <td class="px-4 py-2 text-center">
         <span class="px-2 py-1 rounded text-xs ${statusColors[t.status] || statusColors['未下载']}">${t.status || '未下载'}</span>
       </td>
@@ -252,7 +252,8 @@ def add_task():
     url = (data.get("url") or "").strip()
     count = max(1, int(data.get("count") or 1))
     if url:
-        tasks.append({"url": url, "count": count, "status": "未下载"})
+        for expanded in expand_url(url, count):
+            tasks.append({"url": expanded, "count": 1, "status": "未下载"})
     return jsonify(serialize_tasks())
 
 
