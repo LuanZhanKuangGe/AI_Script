@@ -1,4 +1,5 @@
 import subprocess
+from pathlib import Path
 from flask import Flask, request, jsonify, Response, stream_with_context
 
 TDL_COMMAND = r"C:\Softwares\tdl_Windows_64bit\tdl.exe dl"
@@ -48,6 +49,7 @@ def download_all(tasks_to_download, download_dir):
         return
     if not download_dir:
         download_dir = DEFAULT_DOWNLOAD_DIR
+    Path(download_dir).mkdir(parents=True, exist_ok=True)
 
     for task in tasks_to_download:
         url = task["url"]
