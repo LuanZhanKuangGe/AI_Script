@@ -367,6 +367,7 @@ def crawl_artist(artist: str, folder: Path, cache: dict):
 
     if not all_videos:
         print("  [结果] 无新视频")
+        cache[artist] = datetime.now().isoformat()
         return
 
     print(f"  发现 {len(all_videos)} 个新视频，解析下载地址...")
