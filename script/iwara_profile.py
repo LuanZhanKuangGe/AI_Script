@@ -263,7 +263,7 @@ def crawl_artist(artist: str, folder: Path, cache: dict):
         try:
             elapsed = now - datetime.fromisoformat(last_time)
             if elapsed < CACHE_INTERVAL:
-                print(f"\n=== {artist}: 跳过（{elapsed.seconds // 60} 分钟前已处理） ===")
+                print(f"  [跳过] {elapsed.seconds // 60} 分钟前已处理")
                 return
         except Exception:
             pass
@@ -362,11 +362,11 @@ def crawl_artist(artist: str, folder: Path, cache: dict):
 
     rename_existing_videos(folder, video_info)
 
-    print(f"\n=== {username} ({artist}) 已有 {len(existing_ids)} 个视频，查找新视频 ===")
-    print(f"  跳过: 私有={skipped_private}, 非R18={skipped_non_r18}, 已有={skipped_existing}, 收藏<{MIN_LIKES}={skipped_likes}, 时长<{MIN_DURATION}s={skipped_duration}")
+    print(f"  [扫描] 已有 {len(existing_ids)} 个视频，查找新视频")
+    print(f"    跳过: 私有={skipped_private}, 非R18={skipped_non_r18}, 已有={skipped_existing}, 收藏<{MIN_LIKES}={skipped_likes}, 时长<{MIN_DURATION}s={skipped_duration}")
 
     if not all_videos:
-        print("  无新视频")
+        print("  [结果] 无新视频")
         return
 
     print(f"  发现 {len(all_videos)} 个新视频，解析下载地址...")
@@ -399,7 +399,7 @@ def crawl_artist(artist: str, folder: Path, cache: dict):
         append_to_output(url_line)
         found += 1
 
-    print(f"\n=== {artist}: 写入 {found}, 无Source {no_source}, 解析失败 {fail_info} ===")
+    print(f"  [结果] 写入 {found}, 无Source {no_source}, 解析失败 {fail_info}")
     cache[artist] = datetime.now().isoformat()
 
 
@@ -419,10 +419,10 @@ if __name__ == "__main__":
 
     cache = load_cache()
     for artist, folder in artists:
-        print(f"\n{'=' * 60}\n[开始] {artist} ({folder.name})\n{'=' * 60}")
+        print(f"\n>>> 处理: {artist} | {folder.name}")
         crawl_artist(artist, folder, cache)
         save_cache(cache)
-        print(f"\n{'=' * 60}\n[结束] {artist}\n{'=' * 60}")
+        print(f"<<< 完成: {artist}")
 
     count = sum(1 for _ in open(OUTPUT_FILE, encoding="utf-8"))
     print(f"\n下载列表已保存到: {OUTPUT_FILE}")
