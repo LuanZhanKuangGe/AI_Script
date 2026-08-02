@@ -31,6 +31,7 @@ API_HEADERS = {
 session = requests.Session()
 _access_token = None
 _refresh_token = None
+_api_down = False
 
 
 def login():
@@ -97,6 +98,7 @@ def get_x_version(url_str):
 
 
 def request_with_retry(url, max_retries=3, use_auth=False, use_xversion=False):
+    global _api_down
     for attempt in range(max_retries):
         headers = get_auth_headers() if use_auth else API_HEADERS.copy()
         if use_xversion:
@@ -111,6 +113,7 @@ def request_with_retry(url, max_retries=3, use_auth=False, use_xversion=False):
                     continue
             print(f"  HTTP {resp.status_code} (尝试 {attempt + 1}/{max_retries})")
         except requests.RequestException as e:
+            _api_down = True
             print(f"  请求失败 (尝试 {attempt + 1}/{max_retries}): {e}")
         time.sleep(2)
     return None
@@ -274,6 +277,9 @@ def crawl_artist(artist: str, folder: Path, cache: dict):
     if not profile_data:
         print(f"获取用户 {artist} 的资料失败")
         return
+    if _api_down:
+        print(f"API 不可用，跳过 {artist} 的后续操作")
+        return
 
     user_id = profile_data["user"]["id"]
     username = profile_data["user"]["username"]
@@ -297,6 +303,8 @@ def crawl_artist(artist: str, folder: Path, cache: dict):
         data = request_with_retry(url)
         if not data:
             print("  请求失败，停止")
+            if _api_down:
+                return
             break
 
         results = data.get("results", [])
@@ -418,9 +426,12 @@ if __name__ == "__main__":
         pass
 
     cache = load_cache()
-    for artist, folder in artists:
+    for i, (artist, folder) in enumerate(artists, 1):
         crawl_artist(artist, folder, cache)
         save_cache(cache)
+        if _api_down:
+            print(f"\nAPI 不可用，跳过剩余 {len(artists) - i} 个文件夹的 URL 访问")
+            break
 
     count = sum(1 for _ in open(OUTPUT_FILE, encoding="utf-8"))
     print(f"\n下载列表已保存到: {OUTPUT_FILE}")
