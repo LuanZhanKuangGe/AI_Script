@@ -81,8 +81,12 @@ def download_task(task, download_dir, log_path):
             subprocess.run(cmd, shell=True, stdout=f, stderr=subprocess.STDOUT)
     except Exception:
         pass
-    task["status"] = "已下载"
-    task["progress"] = 100
+    progress = read_progress(log_path)
+    if progress == 100:
+        task["status"] = "已下载"
+    else:
+        task["status"] = "失败"
+    task["progress"] = progress
     with _lock:
         active_task = None
         active_log = None
@@ -163,7 +167,8 @@ function escapeHtml(s) {
 const statusColors = {
   '未下载': 'bg-slate-600 text-slate-200',
   '下载中': 'bg-amber-600 text-amber-100',
-  '已下载': 'bg-emerald-600 text-emerald-100'
+  '已下载': 'bg-emerald-600 text-emerald-100',
+  '失败': 'bg-rose-600 text-rose-100'
 };
 
 function progressCell(p) {
@@ -315,7 +320,7 @@ def download():
         return jsonify({"error": "已有下载正在进行中"}), 400
     data = request.get_json(force=True)
     download_dir = (data.get("download_dir") or "").strip() or DEFAULT_DOWNLOAD_DIR
-    pending = [t for t in tasks if t.get("status", "未下载") == "未下载"]
+    pending = [t for t in tasks if t.get("status", "未下载") in ("未下载", "失败")]
     if not pending:
         return jsonify({"error": "没有未下载的任务"}), 400
     LOG_DIR.mkdir(parents=True, exist_ok=True)
