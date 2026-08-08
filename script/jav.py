@@ -1,4 +1,5 @@
 import json
+import os
 import re
 import sys
 from pathlib import Path
@@ -32,6 +33,19 @@ def normalize_jav_id(raw_id: str) -> str:
     if vid.endswith("Z"):
         vid = vid[:-1]
     return vid
+
+
+def scan_missing_images(jav_path: Path) -> set:
+    missing = set()
+    for dirpath, _dirnames, filenames in os.walk(jav_path):
+        names = set(filenames)
+        for fn in filenames:
+            if fn.lower().endswith(".nfo"):
+                stem = Path(fn).stem
+                vid = normalize_jav_id(stem)
+                if f"{stem}-fanart.jpg" not in names or f"{stem}-poster.jpg" not in names:
+                    missing.add(vid)
+    return missing
 
 
 def collect_ids(path: Path, pattern: str, label: str, processor) -> set:
@@ -103,9 +117,8 @@ def print_stats(jav_path: Path, empty_folders, short_names, missing_images=None)
 
     if missing_images:
         print(f"  缺少 fanart/poster ({len(missing_images)} 个)")
-        if isinstance(missing_images, list):
-            for vid in missing_images:
-                print(f"    {vid}")
+        for vid in missing_images:
+            print(f"    {vid}")
 
 
 def scan_quick(jav_path: Path) -> None:
@@ -128,7 +141,6 @@ def scan_quick(jav_path: Path) -> None:
     print("[2/6] 扫描 JAV nfo (仅文件名)")
     jav_id = set()
     folder_dict = {}
-    missing_images = set()
     nfo_files = list(jav_path.rglob("*.nfo"))
     print(f"  共 {len(nfo_files)} 个nfo文件")
     for i, nfo in enumerate(nfo_files, 1):
@@ -139,10 +151,7 @@ def scan_quick(jav_path: Path) -> None:
         serial_id = nfo.stem.split("-")[0]
         if serial_id not in folder_dict:
             folder_dict[serial_id] = nfo.parent.name
-        fanart = nfo.parent / f"{nfo.stem}-fanart.jpg"
-        poster = nfo.parent / f"{nfo.stem}-poster.jpg"
-        if not fanart.exists() or not poster.exists():
-            missing_images.add(vid)
+    missing_images = scan_missing_images(jav_path)
     print(f"  {len(jav_id)} 个ID，{len(missing_images)} 个缺少图片，{len(folder_dict)} 个系列")
 
     print("[3/6] 扫描 FC2")
@@ -180,7 +189,6 @@ def scan_full(jav_path: Path) -> None:
     jav_id = set()
     folder_dict = {}
     actor_count = {}
-    missing_images = []
 
     nfo_files = list(jav_path.rglob("*.nfo"))
     print(f"  共 {len(nfo_files)} 个nfo文件")
@@ -193,11 +201,6 @@ def scan_full(jav_path: Path) -> None:
         if serial_id not in folder_dict:
             folder_dict[serial_id] = nfo.parent.name
 
-        fanart = nfo.parent / f"{nfo.stem}-fanart.jpg"
-        poster = nfo.parent / f"{nfo.stem}-poster.jpg"
-        if not fanart.exists() or not poster.exists():
-            missing_images.append(vid)
-
         try:
             content = nfo.read_text(encoding="utf-8", errors="ignore")
             if "<tag>单体作品</tag>" in content:
@@ -207,6 +210,7 @@ def scan_full(jav_path: Path) -> None:
                     actor_count[name] = actor_count.get(name, 0) + 1
         except Exception:
             pass
+    missing_images = scan_missing_images(jav_path)
     print(f"  {len(jav_id)} 个ID，{len(missing_images)} 个缺少图片")
 
     print("[3/6] 扫描 FC2")
