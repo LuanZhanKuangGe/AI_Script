@@ -35,8 +35,8 @@ def normalize_jav_id(raw_id: str) -> str:
     return vid
 
 
-def scan_missing_images(jav_path: Path) -> set:
-    missing = set()
+def scan_missing_images(jav_path: Path) -> dict:
+    missing = {}
     for dirpath, _dirnames, filenames in os.walk(jav_path):
         names = set(filenames)
         for fn in filenames:
@@ -44,7 +44,7 @@ def scan_missing_images(jav_path: Path) -> set:
                 stem = Path(fn).stem
                 vid = normalize_jav_id(stem)
                 if f"{stem}-fanart.jpg" not in names or f"{stem}-poster.jpg" not in names:
-                    missing.add(vid)
+                    missing[vid] = Path(dirpath) / fn
     return missing
 
 
@@ -117,8 +117,8 @@ def print_stats(jav_path: Path, empty_folders, short_names, missing_images=None)
 
     if missing_images:
         print(f"  缺少 fanart/poster ({len(missing_images)} 个)")
-        for vid in missing_images:
-            print(f"    {vid}")
+        for nfo in missing_images.values():
+            print(f"    {nfo}")
 
 
 def scan_quick(jav_path: Path) -> None:
