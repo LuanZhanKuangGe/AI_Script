@@ -35,17 +35,59 @@ def normalize_jav_id(raw_id: str) -> str:
     return vid
 
 
-def scan_missing_images(jav_path: Path) -> dict:
-    missing = {}
-    for dirpath, _dirnames, filenames in os.walk(jav_path):
+def scan_jav(jav_path: Path, with_content: bool = False) -> dict:
+    jav_id = set()
+    folder_dict = {}
+    missing_images = {}
+    nfo_count = defaultdict(int)
+    empty_folders = []
+    short_names = []
+    actor_count = {}
+
+    jav_root = os.fspath(jav_path)
+    for dirpath, dirnames, filenames in os.walk(jav_path):
+        rel = os.path.relpath(dirpath, jav_root)
+        if rel == ".":
+            top_name = jav_path.name
+        else:
+            parts = rel.split(os.sep)
+            top_name = parts[0].split(" ")[0]
+            if len(parts) == 1:
+                if not dirnames and not filenames:
+                    empty_folders.append(dirpath)
+                if len(parts[0].split()) < 2:
+                    short_names.append(dirpath)
         names = set(filenames)
         for fn in filenames:
             if fn.lower().endswith(".nfo"):
                 stem = Path(fn).stem
                 vid = normalize_jav_id(stem)
+                jav_id.add(vid)
+                serial_id = stem.split("-")[0]
+                if serial_id not in folder_dict:
+                    folder_dict[serial_id] = Path(dirpath).name
+                nfo_count[top_name] += 1
                 if f"{stem}-fanart.jpg" not in names or f"{stem}-poster.jpg" not in names:
-                    missing[vid] = Path(dirpath) / fn
-    return missing
+                    missing_images[vid] = Path(dirpath) / fn
+                if with_content:
+                    try:
+                        content = (Path(dirpath) / fn).read_text(encoding="utf-8", errors="ignore")
+                        if "<tag>单体作品</tag>" in content:
+                            m = re.search(r"<actor>\s*<name>([^<]+)</name>", content)
+                            if m:
+                                name = m.group(1).strip()
+                                actor_count[name] = actor_count.get(name, 0) + 1
+                    except Exception:
+                        pass
+    return {
+        "jav_id": jav_id,
+        "folder_dict": folder_dict,
+        "missing_images": missing_images,
+        "nfo_count": nfo_count,
+        "empty_folders": empty_folders,
+        "short_names": short_names,
+        "actor_count": actor_count,
+    }
 
 
 def collect_ids(path: Path, pattern: str, label: str, processor) -> set:
@@ -93,7 +135,7 @@ def vr_processor(f: Path) -> set:
 PROCESSORS = [jav_processor, fc2_processor, tokyo_hot_processor, vr_processor]
 
 
-def print_stats(jav_path: Path, empty_folders, short_names, missing_images=None):
+def print_stats(empty_folders, short_names, missing_images=None, nfo_count=None):
     if empty_folders:
         print(f"  空文件夹 ({len(empty_folders)} 个)：")
         for f in empty_folders:
@@ -103,17 +145,11 @@ def print_stats(jav_path: Path, empty_folders, short_names, missing_images=None)
         for f in short_names:
             print(f"    {f}")
 
-    folder_stats = defaultdict(int)
-    for folder in jav_path.iterdir():
-        if folder.is_dir():
-            nfo_count = len(list(folder.glob("*.nfo")))
-            if nfo_count > 0:
-                folder_stats[folder.name.split(" ")[0]] += nfo_count
-
-    sorted_folders = sorted(folder_stats.items(), key=lambda x: x[1], reverse=True)
-    print(f"  {len(sorted_folders)} 个系列，{sum(folder_stats.values())} 个nfo")
-    for i, (name, cnt) in enumerate(sorted_folders, 1):
-        print(f"    {i:3d}. {name:<40} {cnt:>5d}")
+    if nfo_count:
+        sorted_folders = sorted(nfo_count.items(), key=lambda x: x[1], reverse=True)
+        print(f"  {len(sorted_folders)} 个系列，{sum(nfo_count.values())} 个nfo")
+        for i, (name, cnt) in enumerate(sorted_folders, 1):
+            print(f"    {i:3d}. {name:<40} {cnt:>5d}")
 
     if missing_images:
         print(f"  缺少 fanart/poster ({len(missing_images)} 个)")
@@ -128,43 +164,25 @@ def scan_quick(jav_path: Path) -> None:
         print(f"[JAV] 路径不存在：{jav_path}")
         return
 
-    print("[1/6] 检查文件夹")
-    empty_folders = []
-    short_names = []
-    for folder in jav_path.iterdir():
-        if folder.is_dir() and len(list(folder.iterdir())) == 0:
-            empty_folders.append(str(folder))
-        if len(folder.name.split()) < 2:
-            short_names.append(str(folder))
-    print(f"[1/6] {len(empty_folders)} 个空文件夹，{len(short_names)} 个名称缺少空格")
+    print("[1/6] 单次扫描文件夹与 nfo")
+    result = scan_jav(jav_path)
+    jav_id, folder_dict = result["jav_id"], result["folder_dict"]
+    missing_images, nfo_count = result["missing_images"], result["nfo_count"]
+    empty_folders, short_names = result["empty_folders"], result["short_names"]
+    print(f"[1/6] {len(empty_folders)} 个空文件夹，{len(short_names)} 个名称缺少空格，"
+          f"{len(jav_id)} 个ID，{len(missing_images)} 个缺少图片，{len(folder_dict)} 个系列")
 
-    print("[2/6] 扫描 JAV nfo (仅文件名)")
-    jav_id = set()
-    folder_dict = {}
-    nfo_files = list(jav_path.rglob("*.nfo"))
-    print(f"  共 {len(nfo_files)} 个nfo文件")
-    for i, nfo in enumerate(nfo_files, 1):
-        if i % 1000 == 0 or i == len(nfo_files):
-            print(f"  {i}/{len(nfo_files)}")
-        vid = normalize_jav_id(nfo.stem)
-        jav_id.add(vid)
-        serial_id = nfo.stem.split("-")[0]
-        if serial_id not in folder_dict:
-            folder_dict[serial_id] = nfo.parent.name
-    missing_images = scan_missing_images(jav_path)
-    print(f"  {len(jav_id)} 个ID，{len(missing_images)} 个缺少图片，{len(folder_dict)} 个系列")
-
-    print("[3/6] 扫描 FC2")
+    print("[2/6] 扫描 FC2")
     jav_id |= collect_ids(OTHER_PATHS[0][0], OTHER_PATHS[0][1], "FC2", fc2_processor)
-    print("[4/6] 扫描 東京熱")
+    print("[3/6] 扫描 東京熱")
     jav_id |= collect_ids(OTHER_PATHS[1][0], OTHER_PATHS[1][1], "東京熱", tokyo_hot_processor)
-    print("[5/6] 扫描 JAV-VR")
+    print("[4/6] 扫描 JAV-VR")
     jav_id |= collect_ids(OTHER_PATHS[2][0], OTHER_PATHS[2][1], "JAV-VR", vr_processor)
 
-    print("[6/6] 保存数据")
+    print("[5/6] 保存数据")
     save_data({"jav_id": list(jav_id), "jav_folder": folder_dict})
-    print(f"  {len(jav_id)} 个ID，{len(folder_dict)} 个系列")
-    print_stats(jav_path, empty_folders, short_names, missing_images)
+    print(f"[5/6] {len(jav_id)} 个ID，{len(folder_dict)} 个系列")
+    print_stats(empty_folders, short_names, missing_images, nfo_count)
     print("[JAV] 快速模式完成")
 
 
@@ -175,60 +193,31 @@ def scan_full(jav_path: Path) -> None:
         print(f"[JAV] 路径不存在：{jav_path}")
         return
 
-    print("[1/6] 检查文件夹")
-    empty_folders = []
-    short_names = []
-    for folder in jav_path.iterdir():
-        if folder.is_dir() and len(list(folder.iterdir())) == 0:
-            empty_folders.append(str(folder))
-        if len(folder.name.split()) < 2:
-            short_names.append(str(folder))
-    print(f"[1/6] {len(empty_folders)} 个空文件夹，{len(short_names)} 个名称缺少空格")
+    print("[1/6] 单次扫描文件夹与 nfo")
+    result = scan_jav(jav_path, with_content=True)
+    jav_id, folder_dict = result["jav_id"], result["folder_dict"]
+    missing_images, nfo_count = result["missing_images"], result["nfo_count"]
+    empty_folders, short_names = result["empty_folders"], result["short_names"]
+    actor_count = result["actor_count"]
+    print(f"[1/6] {len(empty_folders)} 个空文件夹，{len(short_names)} 个名称缺少空格，"
+          f"{len(jav_id)} 个ID，{len(missing_images)} 个缺少图片")
 
-    print("[2/6] 扫描 JAV nfo (含文件内容)")
-    jav_id = set()
-    folder_dict = {}
-    actor_count = {}
-
-    nfo_files = list(jav_path.rglob("*.nfo"))
-    print(f"  共 {len(nfo_files)} 个nfo文件")
-    for i, nfo in enumerate(nfo_files, 1):
-        if i % 1000 == 0 or i == len(nfo_files):
-            print(f"  {i}/{len(nfo_files)}")
-        vid = normalize_jav_id(nfo.stem)
-        jav_id.add(vid)
-        serial_id = nfo.stem.split("-")[0]
-        if serial_id not in folder_dict:
-            folder_dict[serial_id] = nfo.parent.name
-
-        try:
-            content = nfo.read_text(encoding="utf-8", errors="ignore")
-            if "<tag>单体作品</tag>" in content:
-                m = re.search(r"<actor>\s*<name>([^<]+)</name>", content)
-                if m:
-                    name = m.group(1).strip()
-                    actor_count[name] = actor_count.get(name, 0) + 1
-        except Exception:
-            pass
-    missing_images = scan_missing_images(jav_path)
-    print(f"  {len(jav_id)} 个ID，{len(missing_images)} 个缺少图片")
-
-    print("[3/6] 扫描 FC2")
+    print("[2/6] 扫描 FC2")
     jav_id |= collect_ids(OTHER_PATHS[0][0], OTHER_PATHS[0][1], "FC2", fc2_processor)
-    print("[4/6] 扫描 東京熱")
+    print("[3/6] 扫描 東京熱")
     jav_id |= collect_ids(OTHER_PATHS[1][0], OTHER_PATHS[1][1], "東京熱", tokyo_hot_processor)
-    print("[5/6] 扫描 JAV-VR")
+    print("[4/6] 扫描 JAV-VR")
     jav_id |= collect_ids(OTHER_PATHS[2][0], OTHER_PATHS[2][1], "JAV-VR", vr_processor)
 
-    print("[6/6] 保存数据库")
+    print("[5/6] 保存数据库")
     database = {
         "jav_id": list(jav_id),
         "jav_folder": folder_dict,
         "actor_count": actor_count,
     }
     save_data(database)
-    print(f"  {len(jav_id)} 个ID，{len(folder_dict)} 个系列，{len(actor_count)} 个演员")
-    print_stats(jav_path, empty_folders, short_names, missing_images)
+    print(f"[5/6] {len(jav_id)} 个ID，{len(folder_dict)} 个系列，{len(actor_count)} 个演员")
+    print_stats(empty_folders, short_names, missing_images, nfo_count)
     print("[JAV] 完整模式完成")
 
 
