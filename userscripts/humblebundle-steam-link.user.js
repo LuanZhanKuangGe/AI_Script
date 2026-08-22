@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Humble Bundle -> Steam Link
 // @namespace    http://tampermonkey.net/
-// @version      2.0
+// @version      3.0
 // @description  Redirect Humble Bundle game tiles to their Steam search page
 // @author       You
 // @match        https://zh.humblebundle.com/games/*
@@ -26,20 +26,13 @@
 
             const steamUrl = `https://store.steampowered.com/search/?term=${encodeURIComponent(gameTitle)}`;
 
-            const newLink = document.createElement('a');
-            for (const attr of link.attributes) {
-                if (attr.name !== 'href') {
-                    newLink.setAttribute(attr.name, attr.value);
-                }
-            }
-            newLink.href = steamUrl;
-            newLink.target = '_blank';
-            newLink.rel = 'noopener noreferrer';
-            newLink.classList.add('hb-steam-link');
-            while (link.firstChild) {
-                newLink.appendChild(link.firstChild);
-            }
-            link.parentNode.replaceChild(newLink, link);
+            link.href = steamUrl;
+            link.target = '_blank';
+            link.rel = 'noopener noreferrer';
+            link.classList.remove('js-item-details');
+            link.addEventListener('click', function(e) {
+                e.stopPropagation();
+            });
         });
     }
 
