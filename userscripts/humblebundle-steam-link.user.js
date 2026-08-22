@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Humble Bundle -> Steam Link
 // @namespace    http://tampermonkey.net/
-// @version      1.0
+// @version      2.0
 // @description  Redirect Humble Bundle game tiles to their Steam search page
 // @author       You
 // @match        https://zh.humblebundle.com/games/*
@@ -11,52 +11,40 @@
 (function() {
     'use strict';
 
-    function getGameData() {
-        const script = document.querySelector('script#webpack-bundle-page-data[type="application/json"]');
-        if (!script) {
-            console.log('[HB->Steam] No webpack data found, retrying...');
-            return null;
-        }
-        try {
-            const data = JSON.parse(script.textContent);
-            if (!data.bundleData) return null;
-            const games = new Map();
-            for (const [key, game] of Object.entries(data.bundleData)) {
-                if (game.human_name) {
-                    games.set(key, game.human_name);
+    function updateLinks() {
+        const tiles = document.querySelectorAll('.tier-item-view');
+        tiles.forEach(tile => {
+            if (tile.dataset.hbSteam) return;
+            tile.dataset.hbSteam = '1';
+
+            const link = tile.querySelector('a.item-details, a.js-item-details');
+            const titleEl = tile.querySelector('.item-title');
+            if (!link || !titleEl) return;
+
+            const gameTitle = titleEl.textContent.trim();
+            if (!gameTitle) return;
+
+            const steamUrl = `https://store.steampowered.com/search/?term=${encodeURIComponent(gameTitle)}`;
+
+            const newLink = document.createElement('a');
+            for (const attr of link.attributes) {
+                if (attr.name !== 'href') {
+                    newLink.setAttribute(attr.name, attr.value);
                 }
             }
-            console.log(`[HB->Steam] Loaded ${games.size} games`);
-            return games;
-        } catch (e) {
-            console.error('[HB->Steam] Parse error:', e);
-            return null;
-        }
-    }
-
-    function updateLinks(games) {
-        const links = document.querySelectorAll('a[href*="/store/"]');
-        let updated = 0;
-        links.forEach(link => {
-            const match = link.getAttribute('href').match(/\/store\/([^/?]+)/);
-            if (!match) return;
-            const machineName = match[1];
-            const gameTitle = games.get(machineName);
-            if (gameTitle && !link.dataset.hbSteam) {
-                link.dataset.hbSteam = '1';
-                link.href = `https://store.steampowered.com/search/?term=${encodeURIComponent(gameTitle)}`;
-                link.target = '_blank';
-                updated++;
+            newLink.href = steamUrl;
+            newLink.target = '_blank';
+            newLink.rel = 'noopener noreferrer';
+            newLink.classList.add('hb-steam-link');
+            while (link.firstChild) {
+                newLink.appendChild(link.firstChild);
             }
+            link.parentNode.replaceChild(newLink, link);
         });
-        if (updated > 0) console.log(`[HB->Steam] Updated ${updated} links`);
     }
 
-    const games = getGameData();
-    if (games) {
-        setTimeout(() => updateLinks(games), 1500);
-        const observer = new MutationObserver(() => updateLinks(games));
-        observer.observe(document.body, { childList: true, subtree: true });
-        setTimeout(() => observer.disconnect(), 30000);
-    }
+    updateLinks();
+    const observer = new MutationObserver(updateLinks);
+    observer.observe(document.body, { childList: true, subtree: true });
+    setTimeout(() => observer.disconnect(), 30000);
 })();
