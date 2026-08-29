@@ -42,6 +42,7 @@ def fetch_video_info(video_id: str, video_file: Path) -> dict | None:
         try:
             resp = requests.get(url, timeout=15, headers=HEADERS)
             if resp.status_code == 200:
+                resp.encoding = "utf-8"
                 soup = BeautifulSoup(resp.text, "html.parser")
                 brand = release_date = None
                 alt_titles = []
@@ -70,14 +71,15 @@ def fetch_video_info(video_id: str, video_file: Path) -> dict | None:
                                 for span in h2.find_all("span", class_="mr-3"):
                                     alt_titles.append(span.get_text().strip())
 
+                if not alt_titles:
+                    alt_titles = _extract_alternate_names(soup)
+
                 if not brand or not release_date or not alt_titles:
                     brand, release_date, alt_titles = _extract_info_fallback(soup, brand, release_date, alt_titles)
 
-                japanese_title = None
-                for title in alt_titles:
-                    if any("\u3040" <= c <= "\u309f" or "\u30a0" <= c <= "\u30ff" or "\u4e00" <= c <= "\u9fff" for c in title):
-                        japanese_title = title
-                        break
+                japanese_title = next((t for t in alt_titles if _has_kana(t)), None)
+                if not japanese_title:
+                    japanese_title = next((t for t in alt_titles if _has_cjk(t)), None)
                 if not japanese_title and alt_titles:
                     japanese_title = alt_titles[0]
 
@@ -92,6 +94,29 @@ def fetch_video_info(video_id: str, video_file: Path) -> dict | None:
             if attempt < 2:
                 time.sleep(5)
     return None
+
+
+def _has_kana(s: str) -> bool:
+    return any(("\u3040" <= c <= "\u309f") or ("\u30a0" <= c <= "\u30ff") or ("\u31f0" <= c <= "\u31ff") for c in s)
+
+
+def _has_cjk(s: str) -> bool:
+    return any("\u4e00" <= c <= "\u9fff" for c in s)
+
+
+def _extract_alternate_names(soup: BeautifulSoup) -> list:
+    h2 = soup.find("h2", string=lambda s: s and "Alternate Names" in s)
+    if not h2:
+        return []
+    content = h2.find_next("div", attrs={"data-expand-content": True})
+    if not content:
+        return []
+    names = []
+    for el in content.find_all(["span", "div", "a", "button", "p"]):
+        txt = el.get_text(" ", strip=True)
+        if txt and txt not in names:
+            names.append(txt)
+    return names
 
 
 def _extract_info_fallback(soup: BeautifulSoup, brand: str | None, release_date: str | None, alt_titles: list) -> tuple:
