@@ -222,8 +222,9 @@ def check_cover_exists(video: Path) -> bool:
     )
 
 
-def scan_full(base_path: Path) -> None:
-    print("[Hanime] 完整模式启动")
+def scan(base_path: Path, do_nfo: bool) -> None:
+    mode = "完整" if do_nfo else "快速"
+    print(f"[Hanime] {mode}模式启动")
 
     if not base_path.exists():
         print(f"[Hanime] 路径不存在：{base_path}")
@@ -233,12 +234,13 @@ def scan_full(base_path: Path) -> None:
     print(f"  找到 {len(videos)} 个视频文件")
 
     database = {"hanime_data": []}
-    new_covers = 0
-    new_nfos = 0
+    missing_covers: list[Path] = []
+    missing_nfos: list[tuple[Path, str]] = []
 
+    print("  [1/3] 扫描视频，统计缺失项...")
     for i, video in enumerate(videos, 1):
         if i % 100 == 0 or i == len(videos):
-            print(f"  {i}/{len(videos)} (封面+{new_covers}, NFO+{new_nfos})")
+            print(f"  扫描 {i}/{len(videos)} (缺失封面 {len(missing_covers)}, 缺失NFO {len(missing_nfos)})")
 
         parts = video.stem.split("-")
         if len(parts) >= 2 and parts[-2].strip() == "720p":
@@ -246,54 +248,45 @@ def scan_full(base_path: Path) -> None:
             database["hanime_data"].append(video_id)
 
             if not check_cover_exists(video):
-                cover_url, save_path = fetch_video_cover(video)
-                if cover_url:
-                    download_cover(cover_url, save_path)
-                    new_covers += 1
+                missing_covers.append(video)
 
-            nfo_path = video.with_suffix(".nfo")
-            if not nfo_path.exists():
-                video_info = fetch_video_info(video_id, video)
-                if video_info:
-                    create_nfo(video_info, video, video_id)
-                    new_nfos += 1
+            if do_nfo and not video.with_suffix(".nfo").exists():
+                missing_nfos.append((video, video_id))
+
+    print(f"  扫描完成：{len(database['hanime_data'])} 个视频，缺失封面 {len(missing_covers)} 个，缺失NFO {len(missing_nfos)} 个")
+
+    new_covers = 0
+    print(f"  [2/3] 开始补全封面（{len(missing_covers)} 个）...")
+    for i, video in enumerate(missing_covers, 1):
+        if i % 50 == 0 or i == len(missing_covers):
+            print(f"  封面 {i}/{len(missing_covers)} (+{new_covers})")
+        cover_url, save_path = fetch_video_cover(video)
+        if cover_url:
+            download_cover(cover_url, save_path)
+            new_covers += 1
+
+    new_nfos = 0
+    if do_nfo:
+        print(f"  [3/3] 开始补全NFO（{len(missing_nfos)} 个）...")
+        for i, (video, video_id) in enumerate(missing_nfos, 1):
+            if i % 50 == 0 or i == len(missing_nfos):
+                print(f"  NFO {i}/{len(missing_nfos)} (+{new_nfos})")
+            video_info = fetch_video_info(video_id, video)
+            if video_info:
+                create_nfo(video_info, video, video_id)
+                new_nfos += 1
 
     save_data(database)
     print(f"  {len(database['hanime_data'])} 个视频，+{new_covers} 封面，+{new_nfos} NFO")
-    print("[Hanime] 完整模式完成")
+    print(f"[Hanime] {mode}模式完成")
+
+
+def scan_full(base_path: Path) -> None:
+    scan(base_path, do_nfo=True)
 
 
 def scan_quick(base_path: Path) -> None:
-    print("[Hanime] 快速模式启动（仅补全封面）")
-
-    if not base_path.exists():
-        print(f"[Hanime] 路径不存在：{base_path}")
-        return
-
-    videos = list(base_path.rglob("*.mp4"))
-    print(f"  找到 {len(videos)} 个视频文件")
-
-    database = {"hanime_data": []}
-    new_covers = 0
-
-    for i, video in enumerate(videos, 1):
-        if i % 100 == 0 or i == len(videos):
-            print(f"  {i}/{len(videos)} (封面+{new_covers})")
-
-        parts = video.stem.split("-")
-        if len(parts) >= 2 and parts[-2].strip() == "720p":
-            video_id = "-".join(parts[:-2])
-            database["hanime_data"].append(video_id)
-
-            if not check_cover_exists(video):
-                cover_url, save_path = fetch_video_cover(video)
-                if cover_url:
-                    download_cover(cover_url, save_path)
-                    new_covers += 1
-
-    save_data(database)
-    print(f"  {len(database['hanime_data'])} 个视频，+{new_covers} 封面")
-    print("[Hanime] 快速模式完成")
+    scan(base_path, do_nfo=False)
 
 
 if __name__ == "__main__":
