@@ -77,6 +77,7 @@ def fetch_video_info(video_id: str, video_file: Path) -> dict | None:
                 if not brand or not release_date or not alt_titles:
                     brand, release_date, alt_titles = _extract_info_fallback(soup, brand, release_date, alt_titles)
 
+                alt_titles = [t for t in alt_titles if t and t.strip().lower() != "none available"]
                 japanese_title = next((t for t in alt_titles if _has_kana(t)), None)
                 if not japanese_title:
                     japanese_title = next((t for t in alt_titles if _has_cjk(t)), None)
