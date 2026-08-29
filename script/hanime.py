@@ -3,6 +3,7 @@ import sys
 import time
 from pathlib import Path
 from datetime import datetime
+import re
 import requests
 from bs4 import BeautifulSoup
 from all_path import HENTAI_VIDEO_HANIME, QINGLONG_SCRIPTS
@@ -69,6 +70,9 @@ def fetch_video_info(video_id: str, video_file: Path) -> dict | None:
                                 for span in h2.find_all("span", class_="mr-3"):
                                     alt_titles.append(span.get_text().strip())
 
+                if not brand or not release_date or not alt_titles:
+                    brand, release_date, alt_titles = _extract_info_fallback(soup, brand, release_date, alt_titles)
+
                 japanese_title = None
                 for title in alt_titles:
                     if any("\u3040" <= c <= "\u309f" or "\u30a0" <= c <= "\u30ff" or "\u4e00" <= c <= "\u9fff" for c in title):
@@ -88,6 +92,43 @@ def fetch_video_info(video_id: str, video_file: Path) -> dict | None:
             if attempt < 2:
                 time.sleep(5)
     return None
+
+
+def _extract_info_fallback(soup: BeautifulSoup, brand: str | None, release_date: str | None, alt_titles: list) -> tuple:
+    if not brand:
+        brand_link = soup.find("a", href=re.compile(r"/browse/brands/"))
+        if brand_link:
+            b = brand_link.get("title") or brand_link.get_text(strip=True) or ""
+            b = re.sub(r"^Browse more\s+", "", b)
+            b = re.sub(r"\s+videos$", "", b)
+            brand = b.strip() or None
+    if not release_date:
+        for s in soup.find_all("script", type="application/ld+json"):
+            try:
+                data = json.loads(s.get_text())
+            except Exception:
+                continue
+            upload = data.get("uploadDate")
+            if upload:
+                release_date = upload[:10]
+                break
+    if not release_date:
+        m = re.search(
+            r"(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},\s+\d{4}",
+            soup.get_text(),
+        )
+        release_date = m.group(0) if m else None
+    if not alt_titles:
+        for s in soup.find_all("script", type="application/ld+json"):
+            try:
+                data = json.loads(s.get_text())
+            except Exception:
+                continue
+            name = data.get("name")
+            if name:
+                alt_titles = [name]
+                break
+    return brand, release_date, alt_titles
 
 
 def create_nfo(video_info: dict, video_file: Path, video_id: str):
@@ -125,20 +166,37 @@ def fetch_video_cover(video_file: Path) -> tuple[str | None, str | None]:
         try:
             resp = requests.get(url, timeout=15, headers=HEADERS)
             if resp.status_code == 200:
-                soup = BeautifulSoup(resp.text, "html.parser")
-                img_div = soup.find("div", class_="hvpi-cover-container")
-                if img_div:
-                    img_tag = img_div.find("img")
-                    if img_tag and img_tag.get("src"):
-                        cover_url = img_tag["src"]
-                        ext = Path(cover_url).suffix or ".jpg"
-                        save_path = video_file.with_suffix(ext)
-                        return cover_url, str(save_path)
+                cover_url = _extract_cover(resp.text)
+                if cover_url:
+                    ext = Path(cover_url).suffix or ".jpg"
+                    save_path = video_file.with_suffix(ext)
+                    return cover_url, str(save_path)
         except Exception as e:
             print(f"  获取封面失败 ({attempt + 1}/3): {e}")
             if attempt < 2:
                 time.sleep(5)
     return None, None
+
+
+def _extract_cover(html: str) -> str | None:
+    soup = BeautifulSoup(html, "html.parser")
+    og = soup.find("meta", property="og:image")
+    if og and og.get("content"):
+        return og["content"]
+    text = html.replace("&quot;", '"')
+    for key in ("cover_url", "poster_url"):
+        m = re.search(r'"%s"\s*:\s*\[\s*\d+\s*,\s*"([^"]+)"' % re.escape(key), text)
+        if m:
+            return m.group(1)
+    m = re.search(r'https://hanime-cdn\.com/images/(?:covers|posters)/[^\s"\'<>]+\.(?:jpg|png|webp)', text)
+    if m:
+        return m.group(0)
+    img_div = soup.find("div", class_="hvpi-cover-container")
+    if img_div:
+        img_tag = img_div.find("img")
+        if img_tag and img_tag.get("src"):
+            return img_tag["src"]
+    return None
 
 
 def download_cover(cover_url: str, save_path: str):
@@ -206,8 +264,36 @@ def scan_full(base_path: Path) -> None:
 
 
 def scan_quick(base_path: Path) -> None:
-    print("[Hanime] 快速模式暂不支持，执行完整模式")
-    scan_full(base_path)
+    print("[Hanime] 快速模式启动（仅补全封面）")
+
+    if not base_path.exists():
+        print(f"[Hanime] 路径不存在：{base_path}")
+        return
+
+    videos = list(base_path.rglob("*.mp4"))
+    print(f"  找到 {len(videos)} 个视频文件")
+
+    database = {"hanime_data": []}
+    new_covers = 0
+
+    for i, video in enumerate(videos, 1):
+        if i % 100 == 0 or i == len(videos):
+            print(f"  {i}/{len(videos)} (封面+{new_covers})")
+
+        parts = video.stem.split("-")
+        if len(parts) >= 2 and parts[-2].strip() == "720p":
+            video_id = "-".join(parts[:-2])
+            database["hanime_data"].append(video_id)
+
+            if not check_cover_exists(video):
+                cover_url, save_path = fetch_video_cover(video)
+                if cover_url:
+                    download_cover(cover_url, save_path)
+                    new_covers += 1
+
+    save_data(database)
+    print(f"  {len(database['hanime_data'])} 个视频，+{new_covers} 封面")
+    print("[Hanime] 快速模式完成")
 
 
 if __name__ == "__main__":
